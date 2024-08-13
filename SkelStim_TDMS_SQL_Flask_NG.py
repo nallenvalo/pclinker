@@ -74,7 +74,7 @@ period = "AM" if datetime.now().hour < 12 else "PM"
 #1) ====================VARIABLES==============================
 
 resistance = 10 # ohms
-peak = 1
+peak = .5
 # Dictionary for Channels f
 # To be modified via the webapp 
 # Have cases with the blank data frame for the largest number of plates
@@ -83,22 +83,20 @@ device = 'Dev3' if harvard == 1 else 'Dev1' if harvard == 2 else ''
 line = 'line2' if harvard == 1 else 'line0' if harvard == 2 else ''
 # This will be hard coded and predetermined 
 HA_Channel_To_Ai_dict = {
-                        (1,1) : f'{device}/ai0',
-                         (1,2) : f'{device}/ai1',
-                         (1,3) : f'{device}/ai2',
-                         (1,4) : f'{device}/ai3',
-                         (1,5) : f'{device}/ai4',
-                         (1,6) : f'{device}/ai5',
-                         (1,7) : f'{device}/ai6',
-                         (1,8) : f'{device}/ai7',
-                         (2,1) : f'{device}/ai0',
-                         (2,2) : f'{device}/ai1',
-                         (2,3) : f'{device}/ai2',
-                         (2,4) : f'{device}/ai3',
-                         (2,5) : f'{device}/ai4',
-                         (2,6) : f'{device}/ai5',
-                         (2,7) : f'{device}/ai6',
-                         (2,8) : f'{device}/ai7',
+                        (1,1) : f'{device}/ai1',
+                         (1,2) : f'{device}/ai2',
+                         (1,3) : f'{device}/ai3',
+                         (1,4) : f'{device}/ai4',
+                         (1,5) : f'{device}/ai5',
+                         (1,6) : f'{device}/ai6',
+                         (1,7) : f'{device}/ai7',
+                         (2,1) : f'{device}/ai1',
+                         (2,2) : f'{device}/ai2',
+                         (2,3) : f'{device}/ai3',
+                         (2,4) : f'{device}/ai4',
+                         (2,5) : f'{device}/ai5',
+                         (2,6) : f'{device}/ai6',
+                         (2,7) : f'{device}/ai7',
                         }
 
 #defaults 
