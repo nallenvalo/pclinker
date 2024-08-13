@@ -1,0 +1,83 @@
+/* src/app/seeding-form/seeding-form.component.css */
+.error-message {
+    color: #ac0000;
+    font-size: 1em; /* Adjust size as needed */
+    font-weight: bold;
+    margin-bottom: 15px;
+  }
+
+.form-container {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 20px;
+    box-shadow: 0 2px 4px rgba(37, 6, 61, 0.5);
+    width: 300px;
+    margin: 20px auto;
+}
+
+.form-container h3 {
+    margin-top: 0;
+    color: #007bff;
+    font-size: 1.2em;
+}
+
+.form-container label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.form-container input {
+    width: calc(100% - 20px);
+    padding: 8px 10px;
+    margin-bottom: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.form-container select {
+    width: calc(100% - 20px);
+    padding: 8px 10px;
+    display : flex;
+    margin-bottom: 10px;
+    border: 2px solid #000000;
+    border-radius: 4px;
+
+}
+
+.form-container option{
+    text-align: center;
+    font-size: 1.2em;
+    border-radius: 4px;
+    color: #000000;
+    font-style: bold;
+    margin-bottom: 2px;
+}
+
+.form-container button {
+    margin-right: 10px;
+    padding: 10px 15px;
+    font-size: 1em;
+    cursor: pointer;
+    border: none;
+    border-radius: 4px;
+    background-color: #007bff;
+    color: #fff;
+    transition: background-color 0.3s ease;
+}
+
+.form-container button:hover {
+    background-color: #0056b3;
+}
+
+.center-text {
+    text-align: center; /* Center the text */
+  }
+
+.form-title {
+    text-align: center;
+    font-size: 1.2em;
+    color: #007bff;
+    font-style: italic;
+    margin-bottom: 7px; /* Add some space below the title */
+}

@@ -1,0 +1,117 @@
+<!-- src/app/app.component.html -->
+<div>
+  <header>
+    <h1>Valo Health Skeletal Stimulators</h1>
+    <h2>Plate Tracker & Stimulation Report for Maturing Skeletal Tissues</h2>
+  </header>
+  <div class="button-bar">
+    <button class="btn-primary" (click)="toggleForm()">Add Seeding</button>
+    <button class="btn-primary" (click)="refreshMaturation(); fetchPlates();">Refresh</button>
+    <button class="btn-primary" (click)="toggleApplyChanges()">
+      {{ applyChangesMode ? 'Cancel Changes' : 'Apply Changes' }}
+    </button>
+    <button class="btn-primary" (click)="toggleFilterDropdown()">{{!showFilterDropdown? 'Filter' : 'Save Selection'}}</button>
+    <button class="btn-secondary">Data Query Page</button>
+  </div>
+  <div *ngIf="showFilterDropdown" class="filter-dropdown-container">
+    <app-filter-dropdown (filterChange)="onFilterChange($event)"></app-filter-dropdown>
+  </div>
+  <div class="content">
+    <h3>Seedings</h3>
+    <img src="valoLogo2.png" class="backgroundIMG">
+    <div *ngIf="showForm">
+      <app-seeding-form [plate]="selectedPlate" [selectedIndex]="selectedIndex" [existingPlates]="plate_logs" (addSeeding)="addNewPlate($event)" (allAdded)="allAdded()" (cancelForm)="cancelForm()"></app-seeding-form>
+    </div>
+
+    <div *ngIf="applyChangesMode" class="apply-changes-form">
+      <div class = "changes-tittle">Change Harvard Apparatus Output</div>
+      <form (ngSubmit)="applyChanges()">
+        <div>
+          <label for="selectedHarvardApparatus">Harvard Apparatus:</label>
+          <select id="selectedHarvardApparatus" [(ngModel)]="selectedHarvardAparatus" name="selectedHarvardAparatus" required>
+            <option *ngFor="let harvard of getUniqueHarvardApparatus()" [value]="harvard">{{ harvard }}</option>
+          </select>
+        </div>
+        <div>
+          <label for="newPulseOnLength">Pulse On (s):</label>
+          <input type="number" id="newPulseOnLength" [(ngModel)]="newPulseOnLength" name="newPulseOnLength">
+        </div>
+        <div>
+          <label for="newCycleLength">Cycle Length (s):</label>
+          <input type="number" id="newCycleLength" [(ngModel)]="newCycleLength" name="newCycleLength">
+        </div>
+        <div>
+          <label for="newTimeSampling">Time Sampling (s):</label>
+          <input type="number" id="newTimeSampling" [(ngModel)]="newTimeSampling" name="newTimeSampling">
+        </div>
+        <div>
+          <label for="newStimFreq">Stim Frequency (Hz):</label>
+          <input type="number" id="newStimFreq" [(ngModel)]="newStimFreq" name="newStimFreq" step="0.01">
+        </div>
+        <div>
+          <label for="newStimulationStart">Stimulation Start:</label>
+          <input type="datetime-local" id="newStimulationStart" [(ngModel)]="newStimulationStart" name="newStimulationStart">
+        </div>
+        <div>
+          <label for="newStimulationEnd">Stimulation End:</label>
+          <input type="datetime-local" id="newStimulationEnd" [(ngModel)]="newStimulationEnd" name="newStimulationEnd">
+        </div>
+        <div>
+          <label for="newPharmacological">Pharmacological:</label>
+          <input type="checkbox" id="newPharmacological" [(ngModel)]="newPharmacological" name="newPharmacological">
+        </div>
+        <button type="submit" class="btn-primary">Apply Changes</button>
+      </form>
+    </div>
+    
+    <div *ngIf="plate_logs.length === 0">
+      <p>No plate logs available.</p>
+    </div>
+    <div class="plate-log-container">
+      <div *ngFor="let plateLog of getFilteredPlateLogs(); let i = index" class="plate-log-box">
+        <button *ngIf="!editMode" class="delete-btn" (click)="deletePlate(i)">X</button>
+        <button *ngIf="editMode" class="edit-btn" (click)="editPlate(i)">Edit</button>
+        <h4>{{ plateLog.plateName }}
+          <img src="valoLogo9.png" class="inline-logo">
+        </h4>
+        <div class = "custom">Seeded or last modified by : {{plateLog.name}}</div>
+        <div>Maturation Progress : {{plateLog.getMaturationPercentage() | number:'1.2-2'}}%</div>
+        <div class="progress-bar">
+          <div class="progress" [style.width.%]="plateLog.getMaturationPercentage()"></div>
+        </div>
+        <div class="user-controlled">
+          <h5>User Controlled Variables</h5>
+          <p><strong>Pulse On (s):</strong> {{ plateLog.pulseOnLength }}</p>
+          <p><strong>Harvard Aparatus (#):</strong> {{ plateLog.HarvardAparatus }}</p>
+          <p><strong>Channel (#):</strong> {{ plateLog.Channel }}</p>
+          <p><strong>Cycle Length (s):</strong> {{ plateLog.cycleLength }}</p>
+          <p><strong>Stim Frequency (Hz):</strong> {{ plateLog.stimFreq }}</p>
+          <p><strong>Time Sampling (s):</strong> {{ plateLog.timeSampling }}</p>
+          <p><strong>Stimulation Start:</strong> {{ plateLog.stimulation_start | date: 'short' }}</p>
+          <p><strong>Stimulation End:</strong> {{ plateLog.stimulation_end | date: 'short' }}</p>
+          <p><strong>Pharmacological:</strong> {{ plateLog.pharmacological ? 'Yes' : 'No' }}</p>
+        </div>
+        <div class="data-reports">
+          <div class="data-report">
+            <h6>Data Report for {{plateLog.Report_time1 | date: 'short'}}</h6>
+            <p><strong>Avg Pulse Voltage</strong>(V): {{ plateLog.voltage1 }}</p>
+            <p><strong>Avg Pulse Duration</strong>(s):{{ plateLog.pulseDuration1 }}</p>
+            <p><strong>Avg Pulse Current</strong>(mA): {{ plateLog.current1 }}</p>
+            <p><strong>Charge Difference:</strong>(V*s):{{ plateLog.chargeDifference1 }}</p>
+            <p><strong>Stim Freq</strong>(Hz):{{ plateLog.frequency1}}</p>
+            <p><strong>Pulse RMS:</strong> {{ plateLog.rms1}}</p>
+          </div>
+          <div class="data-report">
+            <h6>Data Report for {{plateLog.Report_time2 | date: 'short'}}</h6>
+            <p><strong>Avg Pulse Voltage</strong>(V):{{ plateLog.voltage2 }}</p>
+            <p><strong>Avg Pulse Duration</strong>(s):{{ plateLog.pulseDuration2 }}</p>
+            <p><strong>Avg Pulse Current</strong>(mA): {{ plateLog.current2 }}</p>
+            <p><strong>Charge Difference</strong>(V*s):{{ plateLog.chargeDifference2 }}</p>
+            <p><strong>Stim Freq</strong>(Hz):{{ plateLog.frequency2}}</p>
+            <p><strong>Pulse RMS:</strong> {{ plateLog.rms2 }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

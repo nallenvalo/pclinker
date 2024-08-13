@@ -1,0 +1,93 @@
+<!-- <select id="selectedHarvardApparatus" [(ngModel)]="selectedHarvardAparatus" name="selectedHarvardAparatus" required>
+  <option *ngFor="let harvard of getUniqueHarvardApparatus()" [value]="harvard">{{ harvard }}</option>
+</select> -->
+
+
+<div class="form-container"> 
+  <p class="form-title">Plate Seeding Form</p>
+  <p class="center-text">Please set seeding parameters for Harvard Aparatus</p>
+  <form (ngSubmit)="onGetnum()" #initialForm="ngForm">
+    <div>
+      <label for="num">Number of plates:</label>
+      <select type = "number" id = "num" name = "num" [(ngModel)]="num" required>
+        <option *ngFor = "let number of possibleNums" type = "number" [ngValue] = number>{{number}} Plates</option>
+      </select>
+      <!-- <input type="number" id="num" name="num" [(ngModel)]="num" required> -->
+    </div>
+    <div>
+      <label for="HarvardAparatus">Harvard Aparatus (#):</label>
+      <select type="number" id="HarvardAparatus" name="HarvardAparatus" [(ngModel)]="HarvardAparatus" required>
+        <option *ngFor = "let number of possibleHarvards" type = "number" [ngValue] = number>Harvard {{number}}</option>
+      </select>
+    </div>
+    <div>
+      <label for="platformCode">Platform Code:</label>
+      <input type="text" id="platformCode" name="platformCode" [(ngModel)]="platformCode" required>
+    </div>
+    <div>
+      <label for="cellLine">Cell Line:</label>
+      <input type="text" id="cellLine" name="cellLine" [(ngModel)]="cellLine" required>
+    </div>
+    <div>
+      <label for="name">Your Name:</label>
+      <input type="text" id="name" name="name" [(ngModel)]="name" required>
+    </div>
+    <div>
+      <label for="pulseOnLength">Pulse On (s) - Default : 1s:</label>
+      <input type="number" id="pulseOnLength" name="pulseOnLength" [(ngModel)]="pulseOnLength" required>
+    </div>
+    <div>
+      <label for="cycleLength">Cycle Length (s) - Default : 10s:</label>
+      <input type="number" id="cycleLength" name="cycleLength" [(ngModel)]="cycleLength" required>
+    </div>
+    <div>
+      <label for="stimFreq">Stim Frequency (Hz) - Default : 10Hz:</label>
+      <input type="number" id="stimFreq" name="stimFreq" [(ngModel)]="stimFreq" step="0.01" required>
+    </div>
+    <div>
+      <label for="timeSampling">Time Sampling (s) - Default : 3600s:</label>
+      <input type="number" id="timeSampling" name="timeSampling" [(ngModel)]="timeSampling" required>
+    </div>
+    <div>
+      <label for="stimulationStart">Stimulation Start:</label>
+      <input type="datetime-local" id="stimulationStart" name="stimulationStart" [(ngModel)]="stimulationStart" required>
+    </div>
+    <!-- <div>
+      <label for="numDays">Number of Stimulation Days</label>
+      <input type="number" id = "numDays" name = "numDays" [(ngModel)]="stimulationStart" required>
+    </div> -->
+    <div>
+      <label for="stimulationEnd">Stimulation End:</label>
+      <input type="datetime-local" id="stimulationEnd" name="stimulationEnd" [(ngModel)]="stimulationEnd" required>
+    </div>
+    <button type="submit">Configure Plates</button>
+    <button type="button" (click)="onCancel()">Cancel</button>
+  </form>
+</div>
+<div *ngIf="showDynamicForms">
+  <div class="form-container">
+    <form (ngSubmit)="onSubmit(currentPlateIndex)" #seedingForm="ngForm">
+      <h3>Configure Plate {{ currentPlateIndex + 1 }}</h3>
+      <p>Set channel for {{ synthesizedPlateName(currentPlateIndex) }}</p>
+      <div *ngIf="errorMessage" class="error-message">
+        {{ errorMessage }}
+      </div>
+      <div>
+        <label for="Channel">Channel (#):</label>
+        <select type="number" id="Channel{{currentPlateIndex}}" name="Channel{{currentPlateIndex}}" [(ngModel)]="newPlates[currentPlateIndex].Channel" required>
+          <option *ngFor = "let channel of getUniqueChannels(newPlates[currentPlateIndex].HarvardAparatus)" type = "number" [ngValue]="channel">Channel {{channel}}</option>
+        </select>
+      </div>
+      <div>
+        <label for="plateName">Plate Name:</label>
+        <input type="text" id="plateName{{currentPlateIndex}}" name="plateName{{currentPlateIndex}}" [(ngModel)]="newPlates[currentPlateIndex].plateName" required>
+      </div>
+      <div>
+        <label for="pharmacological">Pharmacological:</label>
+        <input type="checkbox" id="pharmacological{{currentPlateIndex}}" name="pharmacological{{currentPlateIndex}}" [(ngModel)]="newPlates[currentPlateIndex].pharmacological">
+      </div>
+      <button type="submit" >Save Plate</button>
+      <button type="button" (click)="onCancel()">Done</button>
+    </form>
+  </div>
+</div>

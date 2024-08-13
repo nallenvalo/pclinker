@@ -3,7 +3,7 @@ Nicholas Allen, Brian Schriver
 
 Valo Health
 Date started : 6 / 25 / 24
-Date last modified  : 7 / 22 / 24
+Date last modified  : 8 / 12 / 24
 
 This code reads multiple input channels from multiple Digital Acquisition Boards and passes them all into the computer's hard drive. 
 After passing into the hard drive, we read the data out and organize the full reads into dictionaries organized by channels. We
@@ -78,24 +78,27 @@ peak = 1
 # Dictionary for Channels f
 # To be modified via the webapp 
 # Have cases with the blank data frame for the largest number of plates
-'''plate_channels_dict = { #'Dev3/apfi0': 'HA1_v',
-                        'Dev3/ai0': 'plate1',
-                        'Dev3/ai1': 'plate2',
-                        'Dev3/ai2': 'plate3',
-                        'Dev3/ai3': 'plate4',
-                        'Dev3/ai4': 'plate5',
-                        'Dev3/ai5': 'plate6',
-                        'Dev3/ai6': 'plate7',
-                        'Dev3/ai7': 'plate8'}'''
+device = 'Dev3' if harvard == 1 else 'Dev1' if harvard == 2 else ''
+# Add Logic once we add in another harvard aparatus 
+line = 'line2' if harvard == 1 else 'line0' if harvard == 2 else ''
 # This will be hard coded and predetermined 
-HA_Channel_To_Ai_dict = {(1,1) : 'Dev3/ai0',
-                         (1,2) : 'Dev3/ai1',
-                         (1,3) : 'Dev3/ai2',
-                         (1,4) : 'Dev3/ai3',
-                         (1,5) : 'Dev3/ai5',
-                         (1,6) : 'Dev3/ai6',
-                         (1,7) : 'Dev3/ai7',
-                         (1,8) : 'Dev3/ai8',
+HA_Channel_To_Ai_dict = {
+                        (1,1) : f'{device}/ai0',
+                         (1,2) : f'{device}/ai1',
+                         (1,3) : f'{device}/ai2',
+                         (1,4) : f'{device}/ai3',
+                         (1,5) : f'{device}/ai4',
+                         (1,6) : f'{device}/ai5',
+                         (1,7) : f'{device}/ai6',
+                         (1,8) : f'{device}/ai7',
+                         (2,1) : f'{device}/ai0',
+                         (2,2) : f'{device}/ai1',
+                         (2,3) : f'{device}/ai2',
+                         (2,4) : f'{device}/ai3',
+                         (2,5) : f'{device}/ai4',
+                         (2,6) : f'{device}/ai5',
+                         (2,7) : f'{device}/ai6',
+                         (2,8) : f'{device}/ai7',
                         }
 
 #defaults 
@@ -106,6 +109,7 @@ pulse_off_length = 9 # s
 f_stimulation = 10 # Hz
 
 plate_channels_dict = {}
+plate_channels_dict[f'{device}/ai0'] = f'Harvard {harvard} Shorted'
 for plate, vars_dict in variables.items(): 
     HarvardAparatus = vars_dict['HarvardAparatus']
     Channel = vars_dict['Channel']
@@ -118,7 +122,7 @@ for plate, vars_dict in variables.items():
         f_stimulation = int(vars_dict["stimFreq"])
         print(f'AnalogIn, plate : ({key} : {plate})')
         plate_channels_dict[key] = plate
-
+print(plate_channels_dict)
 
 if not plate_channels_dict: 
     print(f'No plates on harvard aparatus {harvard}')
@@ -127,13 +131,12 @@ if not plate_channels_dict:
 n_sampling = f_sampling * t_sampling
 dt_stimulation = 1/f_stimulation
     
-line = 'line2' if harvard == 1 else 'line3'
 # Channels for reading
 channels = [input.split('/')[1] for input in plate_channels_dict.keys()]
 # channels = ['ai0', 'ai2', 'ai4', 'ai6', 'ai8']
 HA_channels = []
 # channels = [channel for channel in channels if channel not in HA_channels]
-channel_list = ", ".join([f"Dev3/{channel}" for channel in channels])
+channel_list = ", ".join([f"{device}/{channel}" for channel in channels])
 
 pulse_interval = pulse_on_length + pulse_off_length
 num_intervals = t_sampling / pulse_interval

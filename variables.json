@@ -1,0 +1,72 @@
+{
+    "240809-PBSPLATE-10OHM-PROTOTYPE-P1": {
+        "pulseOnLength": 1,
+        "HarvardAparatus": 1,
+        "Channel": 1,
+        "cycleLength": 10,
+        "stimFreq": 10.0,
+        "timeSampling": 60,
+        "stimulation_start": "2024-08-05T11:45:00",
+        "stimulation_end": "2024-10-29T11:45:00"
+    },
+    "240809-PBSPLATE-10OHM-PROTOTYPE-P2": {
+        "pulseOnLength": 1,
+        "HarvardAparatus": 1,
+        "Channel": 2,
+        "cycleLength": 10,
+        "stimFreq": 10.0,
+        "timeSampling": 60,
+        "stimulation_start": "2024-08-05T11:45:00",
+        "stimulation_end": "2024-10-29T11:45:00"
+    },
+    "240809-PBSPLATE-10OHM-PROTOTYPE-P3": {
+        "pulseOnLength": 1,
+        "HarvardAparatus": 1,
+        "Channel": 3,
+        "cycleLength": 10,
+        "stimFreq": 10.0,
+        "timeSampling": 60,
+        "stimulation_start": "2024-08-05T11:45:00",
+        "stimulation_end": "2024-10-29T11:45:00"
+    },
+    "240809-PBSPLATE-10OHM-PROTOTYPE-P4": {
+        "pulseOnLength": 1,
+        "HarvardAparatus": 1,
+        "Channel": 4,
+        "cycleLength": 10,
+        "stimFreq": 10.0,
+        "timeSampling": 60,
+        "stimulation_start": "2024-08-05T11:45:00",
+        "stimulation_end": "2024-10-29T11:45:00"
+    },
+    "240809-PBSPLATE-10OHM-PROTOTYPE-P5": {
+        "pulseOnLength": 1,
+        "HarvardAparatus": 1,
+        "Channel": 5,
+        "cycleLength": 10,
+        "stimFreq": 10.0,
+        "timeSampling": 60,
+        "stimulation_start": "2024-08-05T11:45:00",
+        "stimulation_end": "2024-10-29T11:45:00"
+    },
+    "240809-PBSPLATE-10OHM-PROTOTYPE-P6": {
+        "pulseOnLength": 1,
+        "HarvardAparatus": 1,
+        "Channel": 6,
+        "cycleLength": 10,
+        "stimFreq": 10.0,
+        "timeSampling": 60,
+        "stimulation_start": "2024-08-05T11:45:00",
+        "stimulation_end": "2024-10-29T11:45:00"
+    },
+    "240809-PBSPLATE-10OHM-PROTOTYPE-P7": {
+        "pulseOnLength": 1,
+        "HarvardAparatus": 1,
+        "Channel": 7,
+        "cycleLength": 10,
+        "stimFreq": 10.0,
+        "timeSampling": 60,
+        "stimulation_start": "2024-08-05T11:45:00",
+        "stimulation_end": "2024-10-29T11:45:00"
+    }
+}

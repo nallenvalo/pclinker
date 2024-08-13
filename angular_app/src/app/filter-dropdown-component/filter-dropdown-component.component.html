@@ -1,0 +1,15 @@
+<!-- src/app/filter-dropdown-component/filter-dropdown-component.component.html -->
+<div class="dropdown-menu">
+  <label>
+    <input type="checkbox" value="all" (change)="onFilterChange($event)" [checked]="selectedFilters.includes('all')"> All
+  </label>
+  <label>
+    <input type="checkbox" value="1" (change)="onFilterChange($event)" [checked]="selectedFilters.includes('1')"> Harvard Aparatus 1
+  </label>
+  <label>
+    <input type="checkbox" value="2" (change)="onFilterChange($event)" [checked]="selectedFilters.includes('2')"> Harvard Aparatus 2
+  </label>
+  <label>
+    <input type="checkbox" value="3" (change)="onFilterChange($event)" [checked]="selectedFilters.includes('3')"> Harvard Aparatus 3
+  </label>
+</div>

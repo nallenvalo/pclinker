@@ -1,0 +1,575 @@
+'''
+Nicholas Allen, Brian Schriver 
+
+Valo Health
+Date started : 6 / 25 / 24
+Date last modified  : 7 / 12 / 24
+
+This code reads multiple input channels from multiple Digital Acquisition Boards and passes them all into the computer's hard drive. 
+After passing into the hard drive, we read the data out and organize the full reads into dictionaries organized by channels. We
+make dataframes based off the channels, one for the full current, one for the full voltage, one for summary stats, and one for cycle
+stats. We identify columns for voltage and current by plate_id, date, date_time, period, and type. We identify rows in the stats
+by date, date_time, and period. We then write these data frames back into SQL, either creating new one, or, more often, reading into the 
+dataframe that is currently in SQL, appending the information, and doing checks for any additional rows and columns, and passing this information
+back into SQL. We read in chunks so as to not yield a data overload. Furthermore, every year, we will create new tables in SQL for the 
+items we are organizing.
+'''
+
+import pandas as pd
+from sqlalchemy import create_engine, inspect
+import mysql.connector
+import numpy as np
+import matplotlib.pyplot as plt
+import scipy
+import logging
+from tabulate import tabulate
+import os
+from sqlalchemy.pool import Pool
+from sqlalchemy import event
+import time
+import time
+from datetime import datetime, date, time as dt_time
+import nidaqmx
+import matplotlib.pyplot as plt
+from nidaqmx.stream_writers import DigitalSingleChannelWriter
+from nidaqmx.stream_readers import AnalogMultiChannelReader
+from nidaqmx.stream_readers import AnalogSingleChannelReader
+from nidaqmx.constants import AcquisitionType, Edge, LoggingMode, LoggingOperation, READ_ALL_AVAILABLE
+from nptdms import TdmsFile
+import scipy.stats as stats
+
+# Get start time
+datetime_start = datetime.now()
+
+# Determine what period, if it is night or day
+period = "AM" if datetime.now().hour < 12 else "PM"
+#1) ====================VARIABLES==============================
+
+f_sampling = 1000 # Hz
+t_sampling = 60 * 60 * 1
+n_sampling = f_sampling * t_sampling
+
+f_stimulation = 10 # Hz
+dt_stimulation = 1/f_stimulation
+pulse_on_length = 1 # s
+pulse_off_length = 9 # s
+
+resistance = 1/1200
+
+# Dictionary for Channels 
+# To be modified via the webapp 
+# Have cases with the blank data frame for the largest number of plates
+plate_channels_dict = { #'Dev3/apfi0': 'HA1_v',
+                        'Dev3/ai0': 'plate1',
+                        'Dev3/ai1': 'plate2',
+                        'Dev3/ai2': 'plate3',
+                        'Dev3/ai3': 'plate4',
+                        'Dev3/ai4': 'plate5',
+                        'Dev3/ai5': 'plate6',
+                        'Dev3/ai6': 'plate7',
+                        'Dev3/ai7': 'plate8'}
+
+pulse_interval = pulse_on_length + pulse_off_length
+read_frequency = f_sampling * 10 
+dt_read = 1 / read_frequency
+samples_per_interval = pulse_interval * read_frequency
+current_date = datetime.now().date()
+start_of_day = datetime.combine(current_date, dt_time())
+t_track = time.time()
+t_start = t_track - start_of_day.timestamp()
+
+# Channels for reading
+channels = [input.split('/')[1] for input in plate_channels_dict.keys()]
+# channels = ['ai0', 'ai2', 'ai4', 'ai6', 'ai8']
+HA_channels = []
+# channels = [channel for channel in channels if channel not in HA_channels]
+channel_list = ", ".join([f"Dev3/{channel}" for channel in channels])
+
+def seconds_to_hhmmss_microseconds(total_seconds):
+    hours = total_seconds // 3600
+    minutes = (total_seconds % 3600) // 60
+    seconds = total_seconds % 60
+    microseconds = (total_seconds - int(total_seconds)) * 1_000_000
+    return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}.{int(microseconds):06}"
+
+pulse_channels_data_dict = {}
+pulse_channels = plate_channels_dict.keys()
+
+random_positive = np.random.uniform(0.50, 0.55, 5000)
+
+# Create an array of 5000 random values between -0.55 and -0.50
+random_negative = np.random.uniform(-0.55, -0.50, 5000)
+
+# Concatenate the arrays
+fives = np.concatenate((random_positive, random_negative))
+
+# Shuffle the concatenated array
+np.random.shuffle(fives)
+
+# Create an array of 90,000 ones
+ones = np.full(90_000, 0.1)
+# Concatenate the arrays
+pattern = np.concatenate((fives, ones))
+# Repeat the pattern 360 times
+data = np.tile(pattern, 360)
+for i, channel in enumerate(pulse_channels): 
+    print(data)
+    pulse_channels_data_dict[channel] = data
+
+# All should be the same length in theory 
+prev = 0
+for key, val in pulse_channels_data_dict.items(): 
+    if prev == 0: 
+        prev = len(val)
+        continue 
+    next = len(val)
+    if next == prev: 
+        prev = next
+    else : 
+        raise ValueError("Len of all the data arrays are not equal") 
+    
+
+num_samples = len(list(pulse_channels_data_dict.values())[0])
+print(f"DATA SUCESSFULLY READ INTO ARRAYS OF SIZE : {num_samples} AT {time.ctime(time.time())}\n")
+# ----------------- 3b Time configurgation & check ---------------------------------------
+# Calculate end for the time array
+stop = t_start + num_samples * dt_read
+# Create the time array
+# Synthesized time data using start time, calculated stop time, and the read frequency
+# Should all have the same time data
+time_array = np.arange(start=t_start, stop=stop, step=dt_read)
+'''
+Checks to ensure that we have made our time array correctly. The min should be the start and the max should be the end.
+Moreover, the start minus the end should equal the sampling time. Note that time_array values are not actual times at which data was recorded,
+this was not possible to get with such a high frequency and while reading in chunks in the way we did. 
+'''
+print(f"Number of samples, {num_samples}, matches the number of values in the time array, {len(time_array)}")
+# print("Time array : ", time_array)
+print(f"""time array configured properly if min of the time array : {time.ctime(start_of_day.timestamp() + min(time_array))}, = the start time :  {time.ctime(start_of_day.timestamp() + t_start)},
+and, max of the time array : {time.ctime(start_of_day.timestamp() + max(time_array))}, = t_start + sampling time : {time.ctime(start_of_day.timestamp() + t_sampling)},
+and the last time minus the first time : {time_array[num_samples - 1] - time_array[0]}, = the sampling time : {t_sampling} \n""")
+
+#4 =================== DATA PROCESSING & DATA FRAME CREATION ================================================
+
+# ----------------------- 4a statistics data frame poppulation & creation ---------------------------------
+
+# Returns the peaks of the data 
+# Takes in an interval of data as well as boolean for pos v negative peaks 
+# Takes all values over the threshold, and then takes the max
+# Caught error w voltage spikes that we would not have seen
+# Plot out the data for a given interval
+def plot_voltage_vs_time(data, times):
+    # Extract the time range for the current interval
+
+    # Plot the data
+    plt.figure(figsize=(20, 6))
+    plt.axhline(y = 5, color = 'black', linestyle = '--')
+    plt.axhline(y = -5, color = 'black', linestyle = '--')
+    plt.plot(times, data, label='Voltage')
+    plt.xlabel('Time (s)')
+    plt.ylabel('Voltage (V)')
+    plt.title('Voltage vs Time')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+def detect_peaks(interval, threshold, positive):
+    peaks = []
+    i = 0
+    while i < len(interval):
+        if (interval[i] > threshold and positive) or (interval[i] < -threshold and not positive):
+            samples = []
+            while i < len(interval) and ((interval[i] > threshold and positive) or (interval[i] < -threshold and not positive)):
+                samples.append(i)
+                i += 1
+            if samples:
+                if positive:
+                    peak_index = max(samples, key=lambda x: interval[x])
+                else:
+                    peak_index = min(samples, key=lambda x: interval[x])
+                peaks.append(peak_index)
+        else:
+            i += 1
+    return peaks
+#spi : samples per interval
+#ns : num samples
+#RF : read freq
+# In order to avoid global vars
+def process_data_by_interval(pulse_data, SPI, NS, RF, name):
+    # alternative peak method, not as accurate, only catches first instance of above the threshold
+    # peaks, _ = scipy.signal.find_peaks(interval * 10, height=5, distance = 900)
+    # neg_peaks, _ = scipy.signal.find_peaks(-interval * 10, height=5, distance = 900)
+    # Detecting positive peaks
+    df= pd.DataFrame(columns=[
+    'day_time',
+    'plate_id',
+    'interval_num',
+    'stimulation period',
+    'pos pulses per cycle',
+    'voltage pos median',
+    'voltage pos mean',
+    'voltage pos std',
+    'voltage pos cv',
+    'voltage pos min',
+    'voltage pos max',
+    'neg pulses per cycle',
+    'voltage neg median',
+    'voltage neg mean',
+    'voltage neg std',
+    'voltage neg cv',
+    'voltage neg min',
+    'voltage neg max',
+    'energy applied',
+    'interval snr',
+    'interval rms'
+    ])
+
+    start_index = 0 # 0 seconds
+    # global vars
+    end_index = SPI // 2 # 5 seconds
+    idx = 0 
+    # Loop through each 10 second interval
+    while start_index <= NS:
+        if end_index > NS : 
+            end_index = NS
+
+        # Pull out data and time for the cycle we are looking at (5 : 15s, 15 : 25s...etc )
+        # On intervals of 5 so as to never miss a pulse data point 
+        interval = pulse_data[start_index:end_index]
+        time_interval = time_array[start_index:end_index]
+
+        # Process the cycle 
+        # Do not want to process the final cycle where there is no real data, no pulse in the final 5 seconds. This will lead to processing errors
+        if end_index != NS : 
+            print(f"Processing data for {name} interval : {start_index/RF} seconds to {end_index/RF} seconds:")
+            # plot_voltage_vs_time(interval, time_interval)
+            peaks = detect_peaks(interval, 5, True)
+            neg_peaks = detect_peaks(interval, 5, False)
+            if not peaks or not neg_peaks: 
+                # Good place to send an alert
+                print(f"ALERT : No peaks for {name} {start_index/RF} seconds to {end_index/RF} seconds!")
+                df.loc[idx, :] = np.nan
+            else:
+                stim_start = time_interval[peaks[0]]
+                stim_end = time_interval[neg_peaks[-1]]
+
+                stimulation_period = stim_end - stim_start
+                df.at[idx, 'stimulation period'] = stimulation_period
+                df.at[idx, 'day_time'] = time.ctime(start_of_day.timestamp() + stim_start)
+                df.at[idx, 'date'] = current_date
+                df.at[idx, 'period'] = period
+                df.at[idx, 'plate_id'] = plate_channels_dict[name]
+                df.at[idx, 'interval_num'] = idx
+
+                df.at[idx, 'pos pulses per cycle'] = len(peaks)
+                df.at[idx, 'voltage pos median'] = np.median(interval[peaks])
+                df.at[idx, 'voltage pos mean'] = np.mean(interval[peaks])
+                df.at[idx, 'voltage pos std'] = np.std(interval[peaks])
+                df.at[idx, 'voltage pos cv'] = stats.variation(interval[peaks])
+                df.at[idx, 'voltage pos min'] = np.min(interval)
+                df.at[idx, 'voltage pos max'] = np.max(interval)
+
+                df.at[idx, 'neg pulses per cycle'] = len(neg_peaks)
+                df.at[idx, 'voltage neg median'] = np.median(interval[neg_peaks])
+                df.at[idx, 'voltage neg mean'] = np.mean(interval[neg_peaks])
+                df.at[idx, 'voltage neg std'] = np.std(interval[neg_peaks])
+                df.at[idx, 'voltage neg cv'] = stats.variation(interval[neg_peaks])
+                df.at[idx, 'voltage neg min'] = np.min(interval)
+                df.at[idx, 'voltage neg max'] = np.max(interval)
+
+                # Full interval signals common to electric stimulatuion statistics
+                df.at[idx, 'interval rms'] = np.sqrt(np.mean(interval ** 2))
+                df.at[idx, 'energy applied'] = np.sum(interval ** 2)
+                df.at[idx, 'interval snr'] = 10 * np.log10(np.mean(interval ** 2) / np.var(interval))
+        # Move to the next interval
+        if idx == 0: 
+            start_index += samples_per_interval // 2 # 0 seconds to 5 seconds
+        else: 
+            start_index += samples_per_interval # 5 seconds to 15, 15 to 25 etc
+        end_index += samples_per_interval # always jump by 10, we handle the end case above
+        idx += 1
+    print(f"\nIntervals Processed, returning {name} intervals data frame\n")
+    return df
+
+def analyze_full_pulse_data(pulse_data, name):
+    print(f"analyzing full pulse data for {name}")
+    df = pd.DataFrame(columns=[
+        'day_time', 'date', 'period', 'plate_id', 'mean', 'median', 'std', 'variance', 'min', 'max', 'range', 'rms',
+        'snr', 'energy', 'pos peaks count', 'pos peaks mean', 'pos peaks median',
+        'pos peaks std', 'pos peaks min', 'pos peaks max', 'neg peaks count', 
+        'neg peaks mean', 'neg peaks median', 'neg peaks std', 'neg peaks min', 
+        'neg peaks max'])
+
+    idx = 0  # Full data only using the first index
+
+    # General domain stats
+    df.at[idx, 'day_time'] = time.ctime(t_track)
+    df.at[idx, 'date'] = current_date
+    df.at[idx, 'period'] = period
+    df.at[idx, 'plate_id'] = plate_channels_dict[key]
+    df.at[idx, 'mean'] = np.mean(pulse_data)
+    df.at[idx, 'median'] = np.median(pulse_data)
+    df.at[idx, 'std'] = np.std(pulse_data)
+    df.at[idx, 'variance'] = np.var(pulse_data)
+    df.at[idx, 'min'] = np.min(pulse_data)
+    df.at[idx, 'max'] = np.max(pulse_data)
+    df.at[idx, 'range'] = np.ptp(pulse_data)
+    df.at[idx, 'rms'] = np.sqrt(np.mean(pulse_data ** 2))
+    df.at[idx, 'snr'] = 10 * np.log10(np.mean(pulse_data ** 2) / np.var(pulse_data))
+    df.at[idx, 'energy'] = np.sum(pulse_data ** 2)
+    
+    pos_peaks = detect_peaks(pulse_data, 5, True)
+    neg_peaks = detect_peaks(pulse_data, 5, False)
+    if not pos_peaks or not neg_peaks: 
+        print(f"ALERT : No peaks for {name} !")
+        df.loc[idx, :] = np.nan
+    else:
+        df.at[idx, 'pos peaks count'] = len(pos_peaks)
+        df.at[idx, 'pos peaks mean'] = np.mean(pulse_data[pos_peaks])
+        df.at[idx, 'pos peaks median'] = np.median(pulse_data[pos_peaks])
+        df.at[idx, 'pos peaks std'] = np.std(pulse_data[pos_peaks])
+        df.at[idx, 'pos peaks min'] = np.min(pulse_data[pos_peaks])
+        df.at[idx, 'pos peaks max'] = np.max(pulse_data[pos_peaks])
+    
+        df.at[idx, 'neg peaks count'] = len(neg_peaks)
+        df.at[idx, 'neg peaks mean'] = np.mean(pulse_data[neg_peaks])
+        df.at[idx, 'neg peaks median'] = np.median(pulse_data[neg_peaks])
+        df.at[idx, 'neg peaks std'] = np.std(pulse_data[neg_peaks])
+        df.at[idx, 'neg peaks min'] = np.min(pulse_data[neg_peaks])
+        df.at[idx, 'neg peaks max'] = np.max(pulse_data[neg_peaks])
+        print(f"stats data frame created for {name}")
+    return df
+#----------------------------- 4b Pulse data frame creation, loading, and storage -----------------------------------------
+
+# Ensure that the pulse array and time array are the same length (will only ever be off by one)
+def ensure_length(pulse_data, time_array):
+    min_length = min(len(time_array), len(pulse_data))
+    time_array = time_array[:min_length]
+    pulse_data = pulse_data[:min_length]
+    return time_array, pulse_data
+
+# channels = ['ai0', 'ai2', 'ai4', 'ai6', 'ai8']
+# def process_data_by_interval(pulse_data, SPI, NS, RF, name):
+data_frame_dict = {}
+data_frame_dict['current'] = pd.DataFrame()
+data_frame_dict['voltage'] = pd.DataFrame()
+data_frame_dict['cycle_stats'] = pd.DataFrame()
+data_frame_dict['summary_stats'] = pd.DataFrame()
+
+for i, (key, value) in enumerate(pulse_channels_data_dict.items()):
+    
+    time_array, value = ensure_length(value, time_array)
+    current = value / resistance # This computation will get a slightly more complex, (value - 2.5)/.185
+    print("Processing data from : ", key)
+
+    data_frame_cyles = process_data_by_interval(value * 10, samples_per_interval, num_samples, read_frequency, key)
+    data_frame_pulse_summary = analyze_full_pulse_data(value * 10, key)
+
+    plate_id = plate_channels_dict[key]
+
+    print('\nprocessing voltage trace...')
+    index_ = ['plate_id', 'day_time', 'date', 'period', 'type'] + [i for i in range(len(value))]
+
+    data_t = [plate_id, time.ctime(t_track), current_date, period, 'Times(S)'] + list(time_array)
+    data_v = [plate_id, time.ctime(t_track), current_date, period, 'Voltage(V)'] + list(value)
+    data = {'ID' : index_, f'col_{i}_t' : data_t, f'col_{i}_v' : data_v}
+    data_frame_voltage = pd.DataFrame(data)
+    
+    print('\nprocessing current trace...\n')
+
+    data_c = [plate_id, time.ctime(t_track), current_date, period, 'Current(A)'] + list(current)
+    data = {'ID' : index_, f'col_{i}_t' : data_t, f'col_{i}_c' : data_c}
+    data_frame_current = pd.DataFrame(data)
+
+    data_frame_voltage.set_index('ID', inplace = True)
+    data_frame_current.set_index('ID', inplace = True)
+
+    if i == 0: 
+        merged_volt = data_frame_voltage
+        merged_current = data_frame_current
+    else: 
+        existing_df_current = data_frame_dict['current'].set_index('ID')
+        existing_df_volt = data_frame_dict['voltage'].set_index('ID')
+        merged_current = pd.concat([existing_df_current, data_frame_current], axis = 1)
+        merged_volt = pd.concat([existing_df_volt, data_frame_voltage], axis = 1)
+    
+    print(f'Finished! saving dataframes for {key} \n')
+    data_frame_dict['current'] = merged_current.reset_index()
+    data_frame_dict['voltage'] = merged_volt.reset_index()
+    data_frame_dict['cycle_stats'] = pd.concat([data_frame_dict['cycle_stats'], data_frame_cyles], ignore_index = True)
+    data_frame_dict['summary_stats'] = pd.concat([data_frame_dict['summary_stats'], data_frame_pulse_summary], ignore_index = True)
+
+#5 ====================WRITE DATA FRAMES TO SQL =========================================
+
+# SQL Data Base Credentials # Database credentials
+username = 'nallen'
+password = 'Tarabio1'
+host = 'localhost'
+
+logging.basicConfig()
+logging.getLogger('sqlalchemy.pool').setLevel(logging.INFO)
+
+# Monitoring connection pool usage
+@event.listens_for(Pool, "checkout")
+def checkout_listener(dbapi_con, con_record, con_proxy):
+    print(f"Connection checked out: {dbapi_con}")
+
+@event.listens_for(Pool, "checkin")
+def checkin_listener(dbapi_con, con_record):
+    print(f"Connection returned to pool: {dbapi_con}")
+
+# Function to add rows to existing table
+def add_rows(engine, table_name, df : pd.DataFrame, chunk_size = 100000):
+    print(f'adding rows to {table_name}')
+    try:
+        chunks = pd.read_sql_table(table_name, engine, chunksize=chunk_size)
+        existing_df = pd.concat(chunk for chunk in chunks)
+        print("DataFrame successfully loaded with shape:", df.shape)
+    except Exception as e:
+        print("Error reading the table:", e)
+    # existing_df = pd.read_sql_table(table_name, engine)
+
+    # Find columns that are in one DataFrame but not the other
+    existing_cols = set(existing_df.columns)
+    new_cols = set(df.columns)
+    
+    cols_to_add_to_existing = new_cols - existing_cols
+    cols_to_add_to_new = existing_cols - new_cols
+    
+    # Add missing columns with pd.NA values
+    for col in cols_to_add_to_existing:
+        existing_df[col] = pd.NA
+    for col in cols_to_add_to_new:
+        df[col] = pd.NA
+    
+    # Ensure both DataFrames have the same columns in the same order
+    # df = df[existing_df.columns]
+    
+    # Concatenate DataFrames
+    combined_df = pd.concat([existing_df, df], axis = 0).reset_index(drop = True)
+    
+    # Write the combined DataFrame back to the SQL table
+    output_dir = 'C:\\Users\\microscope\\Desktop\\SkeletalStimLogs\\Nick_SQL_Pilot\\'
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    sql_out_file = output_dir + datetime.now().strftime('%Y_%m_%d_%H_%M_%S') + f'SQL_plot_{table_name}.csv'
+    combined_df.to_csv(sql_out_file, index=True)
+
+    try:
+        for i in range(0, combined_df.shape[0], chunk_size):
+            chunk = combined_df.iloc[i:i + chunk_size]
+            if i == 0:
+                chunk.to_sql(table_name, engine, if_exists='replace', index=False)
+            else:
+                chunk.to_sql(table_name, engine, if_exists='append', index=False)
+        print("DataFrame successfully uploaded in chunks.")
+    except Exception as e:
+        print("Error uploading the DataFrame:", e)
+    # combined_df.to_sql(table_name, engine, if_exists='replace', index=False)
+    
+def custom_sort(index):
+    # Sort function that puts strings first, then numbers
+    return sorted(index, key=lambda x: (isinstance(x, (int, float)), x))
+
+def add_columns(engine, table_name, df : pd.DataFrame, chunk_size = 100000):
+    # index into the proper column using that ID column
+    # Make sure that there is only one of these columns
+    #   existing_df = pd.read_sql_table(table_name, engine)
+    try:
+        chunks = pd.read_sql_table(table_name, engine, chunksize=chunk_size)
+        existing_df = pd.concat(chunk for chunk in chunks)
+        print("DataFrame successfully loaded with shape:", df.shape)
+    except Exception as e:
+        print("Error reading the table:", e)
+
+    existing_df.set_index('ID', inplace = True)
+    df.set_index('ID', inplace = True)
+
+    existing_df.index = existing_df.index.astype(str)
+    df.index = df.index.astype(str)
+
+    combined_indexes = existing_df.index.union(df.index)
+
+    def custom_sort(index):
+        try:
+            return (1, int(index))
+        except ValueError:
+            return (0, index)
+
+    # Sort combined indexes
+    combined_indexes = sorted(combined_indexes, key=custom_sort)
+
+    existing_df_reindexed = existing_df.reindex(combined_indexes)
+    df_reindexed = df.reindex(combined_indexes)
+
+    df_reindexed.columns = [i for i in range(len(df_reindexed.columns))]
+    existing_df_reindexed.columns = [j + len(df_reindexed.columns) for j in range(len(existing_df_reindexed.columns))]
+    
+    # Concatenate the DataFrames
+    combined_df = pd.concat([df_reindexed, existing_df_reindexed], axis=1, join = 'outer')
+    # make sure that the ID column is modified when we pull it back out
+    combined_df.reset_index(inplace = True)
+
+    # Writing to computer to ensure
+    '''output_dir = 'C:\\Users\\microscope\\Desktop\\SkeletalStimLogs\\Nick_SQL_Pilot\\'
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    sql_out_file = output_dir + datetime.now().strftime('%Y_%m_%d_%H_%M_%S') + f'SQL_plot_{table_name}.csv'
+    combined_df.to_csv(sql_out_file, index=True)'''
+
+    # Rename the columns sequentially
+    new_columns = {col: f'col_{i+1}' for i, col in enumerate(combined_df.columns[1:])}
+    combined_df.rename(columns=new_columns, inplace=True)
+
+    try:
+        for i in range(0, combined_df.shape[0], chunk_size):
+            chunk = combined_df.iloc[i:i + chunk_size]
+            if i == 0:
+                chunk.to_sql(table_name, engine, if_exists='replace', index=False)
+            else:
+                chunk.to_sql(table_name, engine, if_exists='append', index=False)
+        print("DataFrame successfully uploaded in chunks.")
+    except Exception as e:
+        print("Error uploading the DataFrame:", e)
+    # print(f'{table_name} written to SQL')
+
+def create_new_table(engine, table_name, df : pd.DataFrame, chunk_size = 100000):
+    print(f'creating {table_name}')
+    pool = engine.pool
+    print(pool.status())
+    try:
+        for i in range(0, df.shape[0], chunk_size):
+        # for i in range(0, df.shape[0], df):
+            chunk = df.iloc[i:i + chunk_size]
+            if i == 0:
+                chunk.to_sql(table_name, engine, if_exists='replace', index=False)
+            else:
+                chunk.to_sql(table_name, engine, if_exists='append', index=False)
+        print("DataFrame successfully uploaded in chunks.")
+    except Exception as e:
+        print("Error uploading the DataFrame:", e)
+
+def process_databases(database_input_df_dict): 
+    # Need to make sure we don't read in the HA for the current
+    # If database doesnt equal current or not in HA_channels list
+    for database_name, df in database_input_df_dict.items():
+        print(f"writing into {database_name}")
+        engine = create_engine(f'mysql+mysqlconnector://{username}:{password}@{host}/{database_name}', pool_size=400, max_overflow=800)
+        inspector = inspect(engine) 
+        # plates must be distinct or else we will override data
+        table = database_name + '_table_' + f'{datetime.now().year}'
+        if inspector.has_table(table): 
+            if database_name == 'current' or database_name == 'voltage':
+                print(f'adding {database_name} columns to {table}')
+                add_columns(engine, table, df)
+            else: 
+                print(f'adding {database_name} rows to {table}')
+                add_rows(engine, table, df)
+        else: 
+            print(f"Table '{table}' does not exist in database '{database_name}'. Creating new table.")
+            create_new_table(engine, table, df)
+datetime_end = datetime.now()
+total_time_elapsed = datetime_end - datetime_start
+print(f'total time elapsed : {total_time_elapsed}')
+process_databases(data_frame_dict)
+print("\nTASK COMPLETED, CODE EXITING\n")
