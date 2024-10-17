@@ -1,0 +1,242 @@
+<table mat-table [dataSource]="dataSource" class="mat-elevation-z8">
+
+  <!--- Note that these columns can be defined in any order.
+        The actual rendered columns are set as a property on the row definition" -->
+
+  <!-- Position Column -->
+  <ng-container matColumnDef="Stimulator">
+    <th mat-header-cell *matHeaderCellDef> Stimulator(#) </th>
+    <td mat-cell *matCellDef="let element"
+    [ngClass] = "{
+      'on-box' : element.Stimulating,
+      'off-box' : !element.Stimulating
+    }"> {{element.Stimulator}} </td>
+  </ng-container>
+
+  <ng-container matColumnDef="Stimulating">
+    <th mat-header-cell *matHeaderCellDef  >
+      Stimulating</th>
+    <td mat-cell *matCellDef="let element"
+      [ngClass] = "{
+        'on-box' : element.Stimulating,
+        'off-box' : !element.Stimulating
+      }">
+      {{element.Stimulating ? 'On' : 'Off'}} </td>
+  </ng-container>
+
+
+  <ng-container matColumnDef="C1"> 
+    <th mat-header-cell *matHeaderCellDef> C1 </th> 
+    <td mat-cell *matCellDef="let element" 
+    [ngClass]="{ 
+      'true-box': element.C1 && element.Stimulating, 
+      'open-box': !element.C1 && element.Stimulating, 
+      'false-box': !element.Stimulating 
+    }"> 
+    {{ element.C1 && element.Stimulating ? 'Stim running' : 
+    !element.C1 && element.Stimulating ? 'open circuit' : 
+    'No Stim' }} 
+    </td> 
+  </ng-container>
+
+  <ng-container matColumnDef="C2"> 
+    <th mat-header-cell *matHeaderCellDef> C2 </th> 
+    <td mat-cell *matCellDef="let element" 
+    [ngClass]="{ 
+      'true-box': element.C2 && element.Stimulating, 
+      'open-box': !element.C2 && element.Stimulating, 
+      'false-box': !element.Stimulating 
+    }"> 
+    {{ element.C2 && element.Stimulating ? 'Stim running' : 
+    !element.C2 && element.Stimulating ? 'open circuit' : 
+    'No Stim' }} 
+    </td> 
+  </ng-container>
+
+  <ng-container matColumnDef="C3"> 
+    <th mat-header-cell *matHeaderCellDef> C3 </th> 
+    <td mat-cell *matCellDef="let element" 
+    [ngClass]="{ 
+      'true-box': element.C3 && element.Stimulating, 
+      'open-box': !element.C3 && element.Stimulating, 
+      'false-box': !element.Stimulating 
+    }"> 
+    {{ element.C3 && element.Stimulating ? 'Stim running' : 
+    !element.C3 && element.Stimulating ? 'open circuit' : 
+    'No Stim' }} 
+    </td> 
+  </ng-container>
+
+  <ng-container matColumnDef="C4"> 
+    <th mat-header-cell *matHeaderCellDef> C4 </th> 
+    <td mat-cell *matCellDef="let element" 
+    [ngClass]="{ 
+      'true-box': element.C4 && element.Stimulating, 
+      'open-box': !element.C4 && element.Stimulating, 
+      'false-box': !element.Stimulating 
+    }"> 
+    {{ element.C4 && element.Stimulating ? 'Stim running' : 
+    !element.C4 && element.Stimulating ? 'open circuit' : 
+    'No Stim' }} 
+    </td> 
+  </ng-container>
+
+  <ng-container matColumnDef="C5"> 
+    <th mat-header-cell *matHeaderCellDef> C5 </th> 
+    <td mat-cell *matCellDef="let element" 
+    [ngClass]="{ 
+      'true-box': element.C5 && element.Stimulating, 
+      'open-box': !element.C5 && element.Stimulating, 
+      'false-box': !element.Stimulating 
+    }"> 
+    {{ element.C5 && element.Stimulating ? 'Stim running' : 
+    !element.C5 && element.Stimulating ? 'open circuit' : 
+    'No Stim' }} 
+    </td> 
+  </ng-container>
+
+  <ng-container matColumnDef="C6"> 
+    <th mat-header-cell *matHeaderCellDef> C6 </th> 
+    <td mat-cell *matCellDef="let element" 
+    [ngClass]="{ 
+      'true-box': element.C6 && element.Stimulating, 
+      'open-box': !element.C6 && element.Stimulating, 
+      'false-box': !element.Stimulating 
+    }"> 
+    {{ element.C6 && element.Stimulating ? 'Stim running' : 
+    !element.C6 && element.Stimulating ? 'open circuit' : 
+    'No Stim' }} 
+    </td> 
+  </ng-container>
+
+  <ng-container matColumnDef="C7"> 
+    <th mat-header-cell *matHeaderCellDef> C7 </th> 
+    <td mat-cell *matCellDef="let element" 
+    [ngClass]="{ 
+      'true-box': element.C7 && element.Stimulating, 
+      'open-box': !element.C7 && element.Stimulating, 
+      'false-box': !element.Stimulating 
+    }"> 
+    {{ element.C7 && element.Stimulating ? 'Stim running' : 
+    !element.C7 && element.Stimulating ? 'open circuit' : 
+    'No Stim' }} 
+    </td> 
+  </ng-container>
+
+  
+  <ng-container matColumnDef="T_AM">
+    <th mat-header-cell *matHeaderCellDef> Morning Stim </th>
+    <td mat-cell *matCellDef="let element"
+    [ngClass] = "{
+      'default-box' : element.Stimulating,
+      'default-off-box' : !element.Stimulating
+    }"> 
+    {{element.T_AM}} </td>
+  </ng-container>
+
+  <ng-container matColumnDef="T_PM">
+    <th mat-header-cell *matHeaderCellDef> Evening Stim </th>
+    <td mat-cell *matCellDef="let element"
+    [ngClass] = "{
+      'default-box' : element.Stimulating,
+      'default-off-box' : !element.Stimulating
+    }"> 
+    {{element.T_PM}} </td>
+  </ng-container>
+
+  <ng-container matColumnDef="voltage_expected">
+    <th mat-header-cell *matHeaderCellDef> Target Pulse Voltage(V) </th>
+    <td mat-cell *matCellDef="let element"
+    [ngClass] = "{
+      'default-box' : element.Stimulating,
+      'default-off-box' : !element.Stimulating
+    }"> 
+    {{element.voltage_expected}} </td>
+  </ng-container>
+
+  <ng-container matColumnDef="voltage_real">
+    <th mat-header-cell *matHeaderCellDef> Real Pulse Voltage(V) </th>
+    <td mat-cell *matCellDef="let element"
+    [ngClass] = "{
+      'real-on-box' : element.Stimulating,
+      'default-off-box' : !element.Stimulating
+    }"> 
+    {{element.voltage_real}} </td>
+  </ng-container>
+
+  <ng-container matColumnDef="PulseOn">
+    <th mat-header-cell *matHeaderCellDef> Target Pulse On(s) </th>
+    <td mat-cell *matCellDef="let element"
+    [ngClass] = "{
+      'default-box' : element.Stimulating,
+      'default-off-box' : !element.Stimulating
+    }">     {{element.PulseOn}} </td>
+  </ng-container>
+
+  <ng-container matColumnDef="PulseOn_real">
+    <th mat-header-cell *matHeaderCellDef> Real Pulse On(s) </th>
+    <td mat-cell *matCellDef="let element"
+    [ngClass] = "{
+      'real-on-box' : element.Stimulating,
+      'default-off-box' : !element.Stimulating
+    }"> 
+    {{element.PulseOn_real}} </td>
+  </ng-container>
+
+  <ng-container matColumnDef="StimFrequency">
+    <th mat-header-cell *matHeaderCellDef> Target Stim Freq(Hz) </th>
+    <td mat-cell *matCellDef="let element"
+    [ngClass] = "{
+      'default-box' : element.Stimulating,
+      'default-off-box' : !element.Stimulating
+    }">     {{element.StimFrequency}} </td>
+  </ng-container>
+
+  <ng-container matColumnDef="StimFrequency_real">
+    <th mat-header-cell *matHeaderCellDef> Real Stim Freq(Hz) </th>
+    <td mat-cell *matCellDef="let element"
+    [ngClass] = "{
+      'real-on-box' : element.Stimulating,
+      'default-off-box' : !element.Stimulating
+    }">     {{element.StimFrequency_real}} </td>
+  </ng-container>
+
+  <ng-container matColumnDef="CycleLength">
+    <th mat-header-cell *matHeaderCellDef>Cycle Length(s) </th>
+    <td mat-cell *matCellDef="let element"
+    [ngClass] = "{
+      'default-box' : element.Stimulating,
+      'default-off-box' : !element.Stimulating
+    }">     {{element.CycleLength}} </td>
+  </ng-container>
+
+  <ng-container matColumnDef="TimeSampling">
+    <th mat-header-cell *matHeaderCellDef> Sampling Time (s) </th>
+    <td mat-cell *matCellDef="let element"
+    [ngClass] = "{
+      'default-box' : element.Stimulating,
+      'default-off-box' : !element.Stimulating
+    }">     {{element.TimeSampling}} </td>
+  </ng-container>
+
+  <ng-container matColumnDef="StimulationStart">
+    <th mat-header-cell *matHeaderCellDef> Stim Start </th>
+    <td mat-cell *matCellDef="let element"
+    [ngClass] = "{
+      'default-box' : element.Stimulating,
+      'default-off-box' : !element.Stimulating
+    }">     {{element.StimulationStart | date : 'MM/dd/yy'}} </td>
+  </ng-container>
+
+  <ng-container matColumnDef="StimulationEnd">
+    <th mat-header-cell *matHeaderCellDef> Stim End </th>
+    <td mat-cell *matCellDef="let element"
+    [ngClass] = "{
+      'default-box' : element.Stimulating,
+      'default-off-box' : !element.Stimulating
+    }">     {{element.StimulationEnd | date: 'MM/dd/yy'}} </td>
+  </ng-container>
+
+  <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+  <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+</table>

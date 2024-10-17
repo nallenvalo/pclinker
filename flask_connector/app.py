@@ -3,11 +3,16 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from sqlalchemy import text
 from config import Config
-from models import db, AppData
+from models import db, AppData, CheckLogs, CheckLogsArchives, shortedHarvards
 import pytz
 from datetime import timedelta
 from datetime import datetime
 from flask_cors import CORS
+import subprocess
+from subprocess import call
+import os 
+
+New_MYSQL_HOST = '10.10.100.41'
 
 # Define the time zone for Eastern Time (ET)
 et = pytz.timezone('US/Eastern')
@@ -37,6 +42,41 @@ def table_exists(table_name):
     result = db.session.execute(text(f"SHOW TABLES LIKE '{table_name}'"))
     return result.scalar() is not None
 
+
+def check_logs():
+    command_path = "C:/Users/microscope/WebApp/check_connection.cmd"
+    if os.path.exists(command_path):
+        try:
+            result = subprocess.run(command_path, 
+                                    shell=True, 
+                                    check=True, 
+                                    stdout=subprocess.PIPE, 
+                                    stderr=subprocess.PIPE)
+            print('Sucessful run')
+            return {'output': result.stdout.decode(), 'error': result.stderr.decode()}
+        except subprocess.CalledProcessError as e:
+            print(e)
+            return {'output': None, 'error': str(e)}
+    else: 
+        print('path does not exist')
+
+def save_plate_data():
+    command_path = "C:/Users/microscope/webApp/save_logs.cmd"
+    if os.path.exists(command_path):
+        try:
+            result = subprocess.run(command_path, 
+                                    shell=True, 
+                                    check=True, 
+                                    stdout=subprocess.PIPE, 
+                                    stderr=subprocess.PIPE)
+            print('Plate Data Saved')
+            return {'output': result.stdout.decode(), 'error': result.stderr.decode()}
+        except subprocess.CalledProcessError as e:
+            print(e)
+            return {'output': None, 'error': str(e)}
+    else: 
+        print('path does not exist')
+
 with app.app_context():
     db.create_all()
 
@@ -62,7 +102,7 @@ def add_plate_logs():
     for i, plate in enumerate(data):
         try:
             new_log = AppData(
-                # id = i,
+                id = i,
                 name=plate['name'],
                 pulseOnLength=plate['pulseOnLength'],
                 HarvardAparatus=plate['HarvardAparatus'],
@@ -100,6 +140,7 @@ def add_plate_logs():
     
     db.session.bulk_save_objects(new_logs)
     db.session.commit()
+    save_plate_data()
     return jsonify({'message': 'Plate logs added'}), 201
 
 @app.route('/api/plate_logs', methods=['GET'])
@@ -140,8 +181,182 @@ def get_plate_logs():
                 'energy2': log.energy2,
                 'rms2': log.rms2
             }
-        result.append(log_data)
+            result.append(log_data)
     return jsonify(result), 200
 
+    
+@app.route('/api/check_logs', methods=['POST'])
+def add_check_logs():
+# Clear the existing table data where name is 'check_logs'
+    if table_exists('check_logs'):
+        try:
+            db.session.execute(text('TRUNCATE TABLE check_logs'))
+            db.session.commit()
+        except Exception as e:
+            print(f"Error clearing existing data: {e}")
+            db.session.rollback()
+            return jsonify({'error': 'Failed to clear existing data'}), 500
+    
+    data = request.json
+    print("Received data:", data)
+    new_logs = []
+    new_logs_archives = []
+    for i, plate in enumerate(data):
+        try:
+            new_log = CheckLogs(
+                #id = i,
+                ranCheck = plate['ranCheck'],
+                plateName = plate['plateName'],
+                Channel = plate['Channel'],
+                Stimulating = plate['Stimulating'],
+                harvardAparatus=plate['harvardAparatus'],
+                current = plate['current'],
+            )
+            new_logs_archive = CheckLogsArchives(
+                #id = i,
+                ranCheck = plate['ranCheck'],
+                t_stamp = datetime.now(),
+                plateName = plate['plateName'],
+                Channel = plate['Channel'],
+                Stimulating = plate['Stimulating'],
+                harvardAparatus=plate['harvardAparatus'],
+                current = plate['current'],
+            )
+            new_logs.append(new_log)
+            new_logs_archives.append(new_logs_archive)
+        except KeyError as e:
+            print(f"Missing key in data: {e}")  # Debugging statement for missing keys
+            return jsonify({'error': f"Missing key in data: {e}"}), 400
+    print('Sending :', new_logs)
+    db.session.bulk_save_objects(new_logs)
+    db.session.bulk_save_objects(new_logs_archives)
+    db.session.commit()
+    check_logs()
+    return jsonify({'message': 'Check logs added and Checker has ran on PC 1'}), 201
+
+@app.route('/api/check_logs', methods=['GET'])
+def get_check_logs():
+    plate_logs = CheckLogs.query.all()
+    print(plate_logs)
+    result = []
+    for log in plate_logs:
+        if log is not None:
+            log_data = {
+                'ranCheck' : log.ranCheck,
+                'plateName': log.plateName if log.plateName else None,
+                'Channel': log.Channel,
+                'Stimulating' : log.Stimulating,
+                'harvardAparatus': log.harvardAparatus,
+                'current' : log.current
+            }
+            result.append(log_data)
+    return jsonify(result), 200
+
+@app.route('/api/shorted_harvard', methods=['GET'])
+def harvard_data():
+    print('Quering Shorted Harvard Aparatus Data table..')
+    harvard_table = shortedHarvards.query.all()
+    print(harvard_table)
+    result = []
+    for log in harvard_table:
+        if log is not None:
+            harvard_data = {
+                'Stimulator' : log.Stimulator, 
+                'voltage': log.voltage,
+                'stimFreq' : log.stimFreq,
+                'pulseOn' : log.pulseOn,
+            }
+            result.append(harvard_data)
+    return jsonify(result), 200
+
+
+# @app.route('/api/config_table_route', methods=['POST'])
+# def add_config_table():
+#     print('post request recieved')
+#     # Clear the existing table data where name is 'check_logs'
+#     if table_exists('config_table'):
+#         try:
+#             db.session.execute(text('TRUNCATE TABLE config_table'))
+#             db.session.commit()
+#         except Exception as e:
+#             print(f"Error clearing existing data: {e}")
+#             db.session.rollback()
+#             return jsonify({'error': 'Failed to clear existing data'}), 500
+    
+#     data = request.json
+#     print("Configuration data recieved:", data)
+#     rows = []
+#     for i, row  in enumerate(data):
+#         try:
+#             new_row = ConfigTable(
+#                 #id = i,
+#                 Stimulator = row['Stimulator'],
+#                 Stimulating = row['Stimulating'],
+#                 T_AM = row['T_AM'],
+#                 T_PM = row['T_PM'],
+#                 voltage_expected = row['voltage_expected'],
+#                 voltage_real = row['voltage_real'],
+#                 PulseOn = row['PulseOn'],
+#                 PulseOn_real = row['PulseOn_real'],
+#                 CycleLength = row['CycleLength'],
+#                 CycleLength_real = row['CycleLength_real'],
+#                 StimFrequency = row['StimFrequency'], 
+#                 StimFrequency_real = row['StimFrequency_real'], 
+#                 TimeSampling = row['TimeSampling'], 
+#                 StimulationStart = datetime.now(),
+#                 StimulationEnd =  datetime.now(),
+#                 C1 =  row['C1'],
+#                 C2 =  row['C2'],
+#                 C3 =  row['C3'],
+#                 C4 =  row['C4'],
+#                 C5 =  row['C5'],
+#                 C6 =  row['C6'],
+#                 C7 =  row['C7']
+#             )
+#             rows.append(new_row)
+#         except KeyError as e:
+#             print(f"Missing key in data: {e}")  # Debugging statement for missing keys
+#             return jsonify({'error': f"Missing key in data: {e}"}), 400
+#     db.session.bulk_save_objects(rows)
+#     db.session.commit()
+#     return jsonify({'message': 'ConfigTable has been uploaded to SQL'}), 201
+
+# @app.route('/api/config_table_route', methods=['GET'])
+# def get_config_table():
+#     print('Quering configuration table..')
+#     config_table = ConfigTable.query.all()
+#     print(config_table)
+#     result = []
+#     for log in config_table:
+#         if log is not None:
+#             log_data = {
+#                 'Stimulator' : log.Stimulator, 
+#                 'Stimulating': log.Stimulating,
+#                 'T_AM' : log.T_AM,
+#                 'T_PM' : log.T_PM,
+#                 'voltage_expected' : log.voltage_expected if log.voltage_expected else None,
+#                 'voltage_real' : log.voltage_real if log.voltage_real else None,
+#                 'PulseOn' : log.PulseOn if log.PulseOn else None,
+#                 'PulseOn_real' : log.PulseOn_real if log.PulseOn_real else None,
+#                 'CycleLength' : log.CycleLength if log.CycleLength else None,
+#                 'CycleLength' : log.CycleLength_real if log.CycleLength_real else None,
+#                 'StimFrequency' : log.StimFrequency if log.StimFrequency else None,
+#                 'StimFrequency_real' : log.StimFrequency_real if log.StimFrequency_real else None,
+#                 'TimeSampling' : log.TimeSampling, 
+#                 'StimulationStart' : log.StimulationStart, 
+#                 'StimulationEnd' : log.StimulationEnd,
+#                 'C1' : log.C1,
+#                 'C2' : log.C2,
+#                 'C3' : log.C3,
+#                 'C4' : log.C4,
+#                 'C5' : log.C5,
+#                 'C6' : log.C6,
+#                 'C7' : log.C7,
+#             }
+#             result.append(log_data)
+#     return jsonify(result), 200
 if __name__ == '__main__':
-    app.run(debug=True)
+    # app.run(debug=True)
+    app.run(host = "10.10.100.15", debug=True)
+    #app.run(debug=True)
+

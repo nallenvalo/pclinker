@@ -13,7 +13,7 @@ import { PlateLogs } from '../shared/Plate_logs';
   styleUrls: ['./seeding-form.component.css']
 })
 export class SeedingFormComponent implements OnChanges {
-  num : number = 6;
+  num : number = 7;
   platformCode = '';
   cellLine = ''; // Cell line
   name = ''; // User name
@@ -24,6 +24,7 @@ export class SeedingFormComponent implements OnChanges {
   stimFreq: number = 10;
   timeSampling: number = 3600;
   stimulationStart!: string;
+  numDays : number = 35;
   stimulationEnd!: string;
   pharmacological: boolean = false;
   Report_time1 !: string;
@@ -43,6 +44,9 @@ export class SeedingFormComponent implements OnChanges {
   energy2 !: number;
   rms2 !: number;
 
+  k : number = 0;
+  Seeding : Array<number> = [0,1,2];
+
   errorMessage: string | null = null;
   showDynamicForms = false;
   newPlates: PlateLogs[] = [];
@@ -51,6 +55,9 @@ export class SeedingFormComponent implements OnChanges {
   @Input() plate: PlateLogs | null = null;
   @Input() selectedIndex: number | null = null;
   @Input() existingPlates: PlateLogs[] = []; // Add this input to get existing plates
+  @Input() platformCodes : Array<string> = []
+  @Input() cellLines : Array<string> = []
+  @Input() Users : Array<string> = []
   @Output() addSeeding = new EventEmitter<{index: number | null, plate: PlateLogs}>();
   @Output() allAdded = new EventEmitter<void>(); // Add this output event
   @Output() cancelForm = new EventEmitter<void>();
@@ -67,6 +74,7 @@ export class SeedingFormComponent implements OnChanges {
       this.stimFreq = this.plate.stimFreq;
       this.timeSampling = this.plate.timeSampling;
       this.stimulationStart = this.plate.stimulation_start.toISOString()
+      this.numDays = this.numDays
       this.stimulationEnd = this.plate.stimulation_end.toISOString()
       this.pharmacological = this.plate.pharmacological;
       this.Report_time1 = this.plate.Report_time1.toISOString()
@@ -182,26 +190,29 @@ export class SeedingFormComponent implements OnChanges {
   onGetnum() {
     const currentDate = this.getCurrentDateYYMMDD();
     //const currentDate = new Date().toISOString().split('T')[0]; // Get current date in YYYY-MM-DD format
+    const endDate = new Date(this.stimulationStart)
+    endDate.setDate(endDate.getDate() + this.numDays)
+    console.log('k : ', this.k)
     this.newPlates = Array(this.num).fill(null).map((_, i) => new PlateLogs(
       this.name, // User name
       this.pulseOnLength,
       this.HarvardAparatus,
-      1, // Default value, will be updated per plate
+      i + 1, // Default value, will be updated per plate
       this.cycleLength,
-      `${currentDate}-${this.cellLine}-${this.platformCode}-P${i + 1}`, // Synthesize the plate name
+      `${currentDate}-${this.cellLine}-${this.platformCode}-P${(this.k * 7 )+ i + 1}`, // Synthesize the plate name
       this.stimFreq,
       this.timeSampling,
       new Date(this.stimulationStart),
-      new Date(this.stimulationEnd),
+      endDate,
       this.pharmacological,
-      new Date(this.Report_time1),
+      new Date(),//(this.Report_time1),
       this.voltage1,
       this.pulseDuration1,
       this.frequency1,
       this.current1,
       this.chargeDifference1,
       this.rms1,
-      new Date(this.Report_time2),
+      new Date(), //(this.Report_time2),
       this.voltage2,
       this.pulseDuration2,
       this.frequency2,
@@ -237,6 +248,7 @@ export class SeedingFormComponent implements OnChanges {
     this.stimFreq = 10;
     this.timeSampling = 3600;
     this.stimulationStart = '';
+    this.numDays = 35,
     this.stimulationEnd = '';
     this.pharmacological = false;
     this.Report_time1 = '';
@@ -246,7 +258,7 @@ export class SeedingFormComponent implements OnChanges {
     this.current1 = NaN;
     this.chargeDifference1 = NaN;
     this.rms1 = NaN;
-    this.Report_time2 = '';
+    this.Report_time2 = ''
     this.voltage2 = NaN;
     this.pulseDuration2 = NaN;
     this.frequency2 = NaN;
@@ -262,7 +274,7 @@ export class SeedingFormComponent implements OnChanges {
     return Array.from(harvardSet);
   }
   possibleNums : Array<number> = [1,2,3,4,5,6,7]
-  possibleChannels : Array<number> = [1,2,3,4,5,6,7,8]
+  possibleChannels : Array<number> = [1,2,3,4,5,6,7]
   possibleHarvards : Array<number> = [1,2,3]
   getUniqueChannels(harvard : number) {
     const ChannelSet : Array<number> = []

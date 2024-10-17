@@ -17,7 +17,7 @@
 
 .form-container h3 {
     margin-top: 0;
-    color: #007bff;
+    color:#007bff;
     font-size: 1.2em;
 }
 
@@ -34,6 +34,7 @@
     border: 1px solid #ddd;
     border-radius: 4px;
 }
+
 
 .form-container select {
     width: calc(100% - 20px);
@@ -67,7 +68,7 @@
 }
 
 .form-container button:hover {
-    background-color: #0056b3;
+    background-color: #007bff;
 }
 
 .center-text {

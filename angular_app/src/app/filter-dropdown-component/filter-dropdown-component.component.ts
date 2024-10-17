@@ -1,4 +1,4 @@
-import { Component, Output, EventEmitter } from '@angular/core';
+import { Component, Output, Input, OnChanges, SimpleChanges, EventEmitter } from '@angular/core';
 
 @Component({
   selector: 'app-filter-dropdown',
@@ -6,12 +6,19 @@ import { Component, Output, EventEmitter } from '@angular/core';
   templateUrl : './filter-dropdown-component.component.html',
   styleUrls: ['./filter-dropdown-component.component.css']
 })
-export class FilterDropdownComponent {
+export class FilterDropdownComponent implements OnChanges {
   @Output() filterChange = new EventEmitter<string[]>();
+  @Input() currentFilters : string[] = []
 
-  selectedFilters: string[] = ['all'];
+  //It should set this to be a string with the current filters instead
+  selectedFilters: string[] = this.currentFilters;
+
+  ngOnChanges(changes : SimpleChanges) {
+    this.selectedFilters = this.currentFilters;
+  }
 
   onFilterChange(event: Event) {
+    console.log(this.currentFilters)
     const inputElement = event.target as HTMLInputElement;
     const value = inputElement.value;
     const checked = inputElement.checked;

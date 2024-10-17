@@ -23,6 +23,7 @@ import sys
 import matplotlib.pyplot as plt
 from datetime import timedelta
 import scipy
+from scipy import integrate
 import numpy as geek 
 import logging
 from tabulate import tabulate
@@ -40,6 +41,7 @@ from nidaqmx.stream_readers import AnalogSingleChannelReader
 from nidaqmx.constants import AcquisitionType, Edge, LoggingMode, LoggingOperation, READ_ALL_AVAILABLE
 from nptdms import TdmsFile
 import scipy.stats as stats
+import seaborn as sns
 
 if len(sys.argv) > 1:
     # The first command line argument
@@ -74,13 +76,16 @@ period = "AM" if datetime.now().hour < 12 else "PM"
 #1) ====================VARIABLES==============================
 
 resistance = 10 # ohms
-peak = .5
+v_stim = 3
+peak = .3
+npeak = .05
 # Dictionary for Channels f
 # To be modified via the webapp 
 # Have cases with the blank data frame for the largest number of plates
 device = 'Dev3' if harvard == 1 else 'Dev1' if harvard == 2 else ''
 # Add Logic once we add in another harvard aparatus 
 line = 'line2' if harvard == 1 else 'line0' if harvard == 2 else ''
+print(f"line : {line}")
 # This will be hard coded and predetermined 
 HA_Channel_To_Ai_dict = {
                         (1,1) : f'{device}/ai1',
@@ -126,6 +131,7 @@ if not plate_channels_dict:
     print(f'No plates on harvard aparatus {harvard}')
     sys.exit(1)
 
+
 n_sampling = f_sampling * t_sampling
 dt_stimulation = 1/f_stimulation
     
@@ -141,7 +147,7 @@ num_intervals = t_sampling / pulse_interval
 read_frequency = f_sampling * 10
 dt_read = 1 / read_frequency
 samples_per_interval = pulse_interval * read_frequency
-buffer_time = 2 # s
+buffer_time = 5 # s
 buffer_size_samples = int(read_frequency * buffer_time)
 
 # TDMS file that we will read the data into 
@@ -154,7 +160,7 @@ we did not notice because we were not reading the first sample. Had inconsistent
 # Generate Pulse Train
 pulse_train = np.zeros(n_sampling, dtype=np.uint32)
 pulse_intervals = np.arange(0, n_sampling, f_sampling // f_stimulation)
-pulse_train[pulse_intervals] = 4 if line == 'line2' else 8 if line == 'line3' else 0
+pulse_train[pulse_intervals] = 4 if line == 'line2' else 1 if line == 'line0' else 0
 # On off pulse train for one cycle
 pulse_on_off_single = np.concatenate((np.ones(pulse_on_length * f_sampling, dtype=np.uint32),
 np.zeros(pulse_off_length * f_sampling, dtype=np.uint32)))
@@ -162,11 +168,16 @@ np.zeros(pulse_off_length * f_sampling, dtype=np.uint32)))
 pulse_on_off = np.tile(pulse_on_off_single, n_sampling // len(pulse_on_off_single) + 1)[:n_sampling]
 # Apply the pulse on/off pattern to the pulse train
 pulse_train *= pulse_on_off
+print(pulse_train)
 
-# plt.plot(pulse_train)f
-# plt.show()
+#plt.plot(pulse_train)
+#plt.show()
 
-print("\nsampling time : ", t_sampling, " seconds ")
+print("\nSampling Time : ", t_sampling, " (s) ")
+print("Stimulation Freqeuncy : ", f_stimulation, " (HZ) ")
+print("Pulse On : ", pulse_on_length, " (s) ")
+print("Cycle Length : ", pulse_on_length + pulse_off_length, " (s)\n")
+
 print(f"PULSE TRAIN GENERATED AT {time.ctime(time.time())}")
 
 def seconds_to_hhmmss_microseconds(total_seconds):
@@ -192,7 +203,7 @@ with nidaqmx.Task() as writetask, nidaqmx.Task() as readtask:
 
     # SETUP: Digital Output writer
     # MUST MAKE SURE WE DO NOT STIMLUATE LEAD 12
-    writetask.do_channels.add_do_chan(f'/Dev3/port0/{line}')
+    writetask.do_channels.add_do_chan(f'/{device}/port0/{line}')
     writetask.timing.cfg_samp_clk_timing(f_sampling, sample_mode=AcquisitionType.FINITE, samps_per_chan=n_sampling)
     writer = DigitalSingleChannelWriter(writetask.out_stream, auto_start=False)
     writer.write_many_sample_port_uint32(pulse_train)
@@ -288,14 +299,16 @@ and the last time minus the first time : {time_array[num_samples - 1] - time_arr
 # Takes all values over the threshold, and then takes the max
 # Caught error w voltage spikes that we would not have seen
 # Plot out the data for a given interval
-def plot_voltage_vs_time(data, times):
+import seaborn as sns
+def plot_voltage_vs_time(data1,data2, t1, t2):
     # Extract the time range for the current interval
 
     # Plot the data
     plt.figure(figsize=(20, 6))
-    plt.axhline(y = 5, color = 'black', linestyle = '--')
-    plt.axhline(y = -5, color = 'black', linestyle = '--')
-    plt.plot(times, data, label='Voltage')
+    plt.axhline(y = 2, color = 'black', linestyle = '--')
+    plt.axhline(y = -2, color = 'black', linestyle = '--')
+    sns.lineplot(x = t1, y =  data1, alpha = .9, linewidth = .5)
+    sns.lineplot(x = t2, y =  data2, alpha = .9, linewidth = .5, color = 'red')
     plt.xlabel('Time (s)')
     plt.ylabel('Voltage (V)')
     plt.title('Voltage vs Time')
@@ -317,6 +330,25 @@ def detect_peaks(interval, threshold, positive):
                     peak_index = max(samples, key=lambda x: interval[x])
                 else:
                     peak_index = min(samples, key=lambda x: interval[x])
+                peaks.append(peak_index)
+        else:
+            i += 1
+    return peaks
+
+def detect_peak_min(interval, threshold, positive):
+    peaks = []
+    i = 0
+    while i < len(interval):
+        if (interval[i] > threshold and positive) or (interval[i] < -threshold and not positive):
+            samples = []
+            while i < len(interval) and ((interval[i] > threshold and positive) or (interval[i] < -threshold and not positive)):
+                samples.append(i)
+                i += 1
+            if samples:
+                if positive:
+                    peak_index = min(samples, key=lambda x: interval[x])
+                else:
+                    peak_index = max(samples, key=lambda x: interval[x])
                 peaks.append(peak_index)
         else:
             i += 1
@@ -377,7 +409,7 @@ def process_data_by_interval(pulse_data, SPI, NS, RF, t, name):
             # print(f"Processing data for {name} interval : {start_index/RF} seconds to {end_index/RF} seconds:")
             # plot_voltage_vs_time(interval, time_interval)
             peaks = detect_peaks(interval, peak, True)
-            neg_peaks = detect_peaks(interval, peak, False)
+            neg_peaks = detect_peaks(interval, npeak, False)
 
             if not peaks or not neg_peaks: 
                 # Good place to send an alert
@@ -406,11 +438,11 @@ def process_data_by_interval(pulse_data, SPI, NS, RF, t, name):
                     end_idx = new_indexes[-1] + int(((pulse_off_length - .5) * read_frequency))
                     if end_idx < len(pulse_data) :
                         post_pulse_interval = pulse_data[new_indexes[-1] : end_idx]
-                        unexpected_peaks += detect_peaks(post_pulse_interval, peak * .5, True)
-                        unexpected_peaks += detect_peaks(post_pulse_interval, peak * .5, False)
+                        unexpected_peaks += detect_peaks(post_pulse_interval, peak, True)
+                        unexpected_peaks += detect_peaks(post_pulse_interval, npeak, False)
                     if unexpected_peaks: 
                         print('\nUNEXPECTED PEAKS DETECTED\n')
-                        normal_stim_ = False
+                        # normal_stim_ = False
                     
                 stim_start = time_interval[peaks[0]]
                 stim_end = time_interval[neg_peaks[-1]]
@@ -457,52 +489,110 @@ def process_data_by_interval(pulse_data, SPI, NS, RF, t, name):
     print(f"\nIntervals Processed, returning {name} intervals data frame\n")
     return df, normal_stim_, indexes_
 
-def analyze_full_pulse_data(pulse_data, t, name, df_cycles : pd.DataFrame):
+def analyze_full_pulse_data(pulse_data, t, name, df_cycles : pd.DataFrame, indexes):
 
     'Report_time1', 'voltage1', 'pulseDuration1', 'frequency1', 'current1', 'charge1', 'chargeDifference1', 
     'maturationPercentage1', 'energy1', 'rms1', 'Report_time2', 'voltage2', 'pulseDuration2', 'frequency2', 
     'current2', 'charge2', 'chargeDifference2', 'maturationPercentage2', 'energy2', 'rms2'
 
     print(f"analyzing full pulse data for {name}")
-    df = pd.DataFrame(columns=[
+    df = pd.DataFrame()
+    '''df = pd.DataFrame(columns=[
         'day_time', 'date', 'period', 'plate_id', 'mean', 'median', 'std', 'variance', 'min', 'max', 'range', 'rms',
         'snr', 'energy', 'pos peaks count', 'pos peaks mean', 'pos peaks median',
         'pos peaks std', 'pos peaks min', 'pos peaks max', 'neg peaks count', 
         'neg peaks mean', 'neg peaks median', 'neg peaks std', 'neg peaks min', 
-        'neg peaks max'])
+        'neg peaks max'])'''
 
     idx = 0  # Full data only using the first index
     # General domain stats
     
     pos_peaks = detect_peaks(pulse_data, peak, True)
-    neg_peaks = detect_peaks(pulse_data, peak, False)
-    if not pos_peaks or not neg_peaks: 
+    neg_peaks = detect_peaks(pulse_data, npeak, False)
+
+    i_min_idx = detect_peak_min(pulse_data, peak, True)
+    i_neg_min_idx = detect_peak_min(pulse_data, npeak, False)
+
+    # no need to use gradient when we look at the scatter plot, it is extremely clear. It is fine to just use ranges. 
+    all_pos_peaks = [i for i in indexes if pulse_data[i] > peak ]
+    recovery_peaks = [i for i in indexes if pulse_data[i] <= peak and pulse_data[i] > 0 ][:-1]
+    all_neg_peaks = [i for i in indexes if pulse_data[i] <= -npeak ]
+
+    '''
+    if all_pos_peaks:
+        sns.scatterplot(y = pulse_data[all_pos_peaks], x = time_array[all_pos_peaks], size = .5, color = 'red')
+        plt.show()
+    
+    sns.scatterplot(y = pulse_data[all_neg_peaks], x = time_array[all_neg_peaks], size = .5, color = 'blue')
+    plt.show()
+
+    sns.scatterplot(y = pulse_data[recovery_peaks], x = time_array[recovery_peaks], size = .5, color = 'green')
+    plt.show()'''
+
+    if not pos_peaks or not all_pos_peaks:
         print(f"ALERT : No peaks for {name}")
         df.loc[idx, :] = np.nan
     else:
+        i_max_avg = (np.mean(pulse_data[pos_peaks]) / resistance) * 1000
+        i_min_avg = (np.mean(pulse_data[i_min_idx]) / resistance) * 1000 
+        i_neg_max_avg = (np.mean(pulse_data[neg_peaks]) / resistance) * 1000 
+        i_neg_min_avg = (np.mean(pulse_data[i_neg_min_idx]) / resistance) * 1000
+        impedance = v_stim / np.sqrt(np.mean((pulse_data[all_pos_peaks] / resistance) ** 2))
+        impedance_n = abs(v_stim / np.sqrt(np.mean((pulse_data[all_neg_peaks] / resistance) ** 2)))
+        # for recovery impedance what do I use for v_stim
+        df.at[idx, 'impedance(Ohms)'] = impedance
+        df.at[idx, 'neg impedance(Ohms)'] = impedance_n
+        df.at[idx, 'i max average(mA)'] = i_max_avg
+        df.at[idx, 'i min average(mA)'] = i_min_avg
         df.at[idx, 'pos peaks count'] = len(pos_peaks)
-        df.at[idx, 'pos peaks mean'] = np.mean(pulse_data[pos_peaks])
-        df.at[idx, 'pos peaks median'] = np.median(pulse_data[pos_peaks])
-        df.at[idx, 'pos peaks std'] = np.std(pulse_data[pos_peaks])
-        df.at[idx, 'pos peaks min'] = np.min(pulse_data[pos_peaks])
-        df.at[idx, 'pos peaks max'] = np.max(pulse_data[pos_peaks])
-        df.at[idx, 'avg pos current'] = (np.mean(pulse_data[pos_peaks]) / resistance) * 1000
-        df.at[idx, 'pos charge'] = np.trapezoid(pulse_data[pos_peaks], x = t[pos_peaks], dx = dt_read)
-        df.at[idx, 'frequency'] = (len(pos_peaks) / t_sampling) * 10
+        df.at[idx, 'pos peaks mean(V)'] = np.mean(pulse_data[all_pos_peaks])
+        df.at[idx, 'pos peaks median(V)'] = np.median(pulse_data[all_pos_peaks])
+        df.at[idx, 'pos peaks std(V)'] = np.std(pulse_data[all_pos_peaks])
+        df.at[idx, 'pos peaks min(V)'] = np.min(pulse_data[all_pos_peaks])
+        df.at[idx, 'pos peaks max(V)'] = np.max(pulse_data[all_pos_peaks])
+        df.at[idx, 'avg pos current(mA)'] = (np.mean(pulse_data[all_pos_peaks]) / resistance) * 1000
+        df.at[idx, 'pos charge(V*s)'] = np.trapezoid(pulse_data[all_pos_peaks], x = t[all_pos_peaks], dx = dt_read)
+        p_charge = np.trapezoid(pulse_data[all_pos_peaks] / resistance, x = t[all_pos_peaks], dx = dt_read)
+        # p_charge_simps = integrate.simpson(y = pulse_data[all_pos_peaks] / resistance, x = t[all_pos_peaks], dx = dt_read)
+        df.at[idx, 'pos pulse charge (Q)'] = p_charge
+        df.at[idx, 'frequency(Hz)'] = (len(pos_peaks) / t_sampling) * 10
+        df.at[idx, 'full charge difference (Q)'] = np.trapezoid(y = (pulse_data[indexes] / resistance), x = t[indexes], dx = dt_read)
         #df.at[idx, 'simp pos charge'] = simps(pulse_data[pos_peaks], t[pos_peaks])
-    
+    if pos_peaks and neg_peaks and all_neg_peaks and all_neg_peaks:
+        df.at[idx, 'i neg min average(mA)'] = i_neg_min_avg
+        df.at[idx, 'i neg max average(mA)'] = i_neg_max_avg
         df.at[idx, 'neg peaks count'] = len(neg_peaks)
-        df.at[idx, 'neg peaks mean'] = np.mean(pulse_data[neg_peaks])
-        df.at[idx, 'neg peaks median'] = np.median(pulse_data[neg_peaks])
-        df.at[idx, 'neg peaks std'] = np.std(pulse_data[neg_peaks])
-        df.at[idx, 'neg peaks min'] = np.min(pulse_data[neg_peaks])
-        df.at[idx, 'neg peaks max'] = np.max(pulse_data[neg_peaks])
-        df.at[idx, 'avg neg current'] = (np.mean(pulse_data[neg_peaks]) / resistance) * 1000
-        df.at[idx, 'neg charge'] = np.trapezoid(pulse_data[neg_peaks], x = t[neg_peaks], dx = dt_read)
+        df.at[idx, 'neg peaks mean(V)'] = np.mean(pulse_data[all_neg_peaks])
+        df.at[idx, 'neg peaks median(V)'] = np.median(pulse_data[all_neg_peaks])
+        df.at[idx, 'neg peaks std(V)'] = np.std(pulse_data[all_neg_peaks])
+        df.at[idx, 'neg peaks min(V)'] = np.min(pulse_data[all_neg_peaks])
+        df.at[idx, 'neg peaks max(V)'] = np.max(pulse_data[all_neg_peaks])
+        df.at[idx, 'avg neg current(mA)'] = (np.mean(pulse_data[all_neg_peaks]) / resistance) * 1000
+        df.at[idx, 'neg charge(V*s)'] = np.trapezoid(pulse_data[all_neg_peaks], x = t[all_neg_peaks], dx = dt_read)
+        #n_charge = np.trapezoid(pulse_data[all_neg_peaks] / (5 / (np.mean(pulse_data[all_neg_peaks]) / resistance)), x = t[all_neg_peaks], dx = dt_read)
+        n_charge = np.trapezoid(pulse_data[all_neg_peaks] / resistance,  x = t[all_neg_peaks], dx = dt_read)
+        # n_charge_simps = integrate.simpson(pulse_data[all_neg_peaks] / resistance,  x = t[all_neg_peaks], dx = dt_read)
+        df.at[idx, 'neg pulse charge (Q)'] = n_charge
         #df.at[idx, 'simp pos charge'] = simps(pulse_data[pos_peaks], t[pos_peaks])
+    if recovery_peaks:
+        i_recovery_max_idx = detect_peak_min(pulse_data[recovery_peaks], .003, True)
+        i_recovery_min_idx = detect_peak_min(pulse_data[recovery_peaks], .003, False)
+        df.at[idx, 'recovery max(mA)'] = np.mean((pulse_data[i_recovery_max_idx]) / resistance) * 1000
+        df.at[idx, 'recovery min(mA)'] = np.mean((pulse_data[i_recovery_min_idx]) / resistance) * 1000
 
-    df.at[idx, 'full charge difference'] = np.trapezoid(y = pulse_data, x = t, dx = dt_read)
-    #df.at[idx, 'simp full charge diff'] = simps(pulse_data, t)
+        #r_charge = np.trapezoid(pulse_data[recovery_peaks] / (5 / (np.mean(pulse_data[recovery_peaks]) / resistance)), x = t[recovery_peaks], dx = dt_read)
+        r_charge =  np.trapezoid(pulse_data[recovery_peaks] / resistance, x = t[recovery_peaks], dx = dt_read)
+        # r_charge_simps = integrate.simpson(pulse_data[recovery_peaks] / resistance, x = t[recovery_peaks], dx = dt_read)
+        df.at[idx, 'avg recovery current (mA)'] = (np.mean(pulse_data[recovery_peaks]) / resistance) * 1000
+        df.at[idx, 'recovery pulse charge (Q)'] = r_charge
+        # df.at[idx, 'full charge difference simpson(Q)'] = integrate.simpson(y = (pulse_data[indexes] / resistance), x = t[indexes])
+        # df.at[idx, 'full charge difference sectioned(Q)'] = ((p_charge + r_charge) - n_charge)
+        # df.at[idx, 'full charge difference sectioned simps(Q)'] = ((p_charge_simps + r_charge_simps +  n_charge_simps))
+
+    '''print(impedance, impedance_n)
+    print(f'\np_charge : {p_charge}\nn_charge : {n_charge}\nr_charge : {r_charge}')
+    print(f'\np_charge : {p_charge_simps}\nn_charge : {n_charge_simps}\nr_charge : {r_charge_simps}')'''
+
     df.at[idx, 'pulseDuration'] = np.mean(df_cycles['stimulation period'].iloc[0])
     df.at[idx, 'day_time'] = datetime_start
     df.at[idx, 'date'] = current_date
@@ -542,7 +632,7 @@ for i, (key, value) in enumerate(pulse_channels_data_dict.items()):
     print("\nProcessing data from : ", key)
 
     data_frame_cyles, normal_stim, indexes = process_data_by_interval(value, samples_per_interval, num_samples, read_frequency, time_array, key)
-    data_frame_pulse_summary = analyze_full_pulse_data(value, time_array, key, data_frame_cyles)
+    data_frame_pulse_summary = analyze_full_pulse_data(value, time_array, key, data_frame_cyles, indexes)
     if normal_stim: 
         value = value[indexes]
         time_ = time_array[indexes]
@@ -591,7 +681,7 @@ def checkin_listener(dbapi_con, con_record):
     print(f"Connection returned to pool: {dbapi_con}")
 
 # Function to add rows to existing table
-def add_rows(engine, table_name, df : pd.DataFrame, chunk_size = 100000):
+def add_rows(engine, table_name, df : pd.DataFrame, chunk_size = 10000):
     print(f'adding rows to {table_name}')
     try:
         chunks = pd.read_sql_table(table_name, engine, chunksize=chunk_size)
@@ -624,13 +714,18 @@ def add_rows(engine, table_name, df : pd.DataFrame, chunk_size = 100000):
     print('\nWriting table to local storage...')
     output_dir = 'C:\\Users\\microscope\\Desktop\\SkeletalStimLogs\\SkelStimWebApp\\'
     if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-    sql_out_file = output_dir + f'{table_name}.csv'
-    if os.path.exists(sql_out_file):
-        os.remove(sql_out_file)
-    combined_df.to_csv(sql_out_file, index=True)
-    print(f'\nLOCAL COPY OF {table_name} STORED AT : {output_dir}\n')
-
+            os.makedirs(output_dir)
+    try: 
+        sql_out_file = output_dir + f'{table_name}.csv'
+        if os.path.exists(sql_out_file):
+            os.remove(sql_out_file)
+        combined_df.to_csv(sql_out_file, index=True)
+    except: 
+        sql_out_file = output_dir + f'{table_name}_' + datetime.now().isoformat()[:10] + '.csv'
+        if os.path.exists(sql_out_file):
+            os.remove(sql_out_file)
+        combined_df.to_csv(sql_out_file, index=True)
+    print(f'\nLOCAL COPY OF {sql_out_file} STORED AT {output_dir}\n')
     try:
         for i in range(0, combined_df.shape[0], chunk_size):
             chunk = combined_df.iloc[i:i + chunk_size]
@@ -647,7 +742,7 @@ def custom_sort(index):
     # Sort function that puts strings first, then numbers
     return sorted(index, key=lambda x: (isinstance(x, (int, float)), x))
 
-def add_columns(engine, table_name, df : pd.DataFrame, chunk_size = 100000):
+def add_columns(engine, table_name, df : pd.DataFrame, chunk_size = 10000):
     # index into the proper column using that ID column
     # Make sure that there is only one of these columns
     #   existing_df = pd.read_sql_table(table_name, engine)
@@ -690,12 +785,18 @@ def add_columns(engine, table_name, df : pd.DataFrame, chunk_size = 100000):
     print('\nWriting table to local storage...')
     output_dir = 'C:\\Users\\microscope\\Desktop\\SkeletalStimLogs\\SkelStimWebApp\\'
     if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-    sql_out_file = output_dir + f'{table_name}.csv'
-    if os.path.exists(sql_out_file):
-        os.remove(sql_out_file)
-    combined_df.to_csv(sql_out_file, index=True)
-    print(f'\nLOCAL COPY OF {table_name} STORED AT : {output_dir}\n')
+            os.makedirs(output_dir)
+    try: 
+        sql_out_file = output_dir + f'{table_name}.csv'
+        if os.path.exists(sql_out_file):
+            os.remove(sql_out_file)
+        combined_df.to_csv(sql_out_file, index=True)
+    except: 
+        sql_out_file = output_dir + f'{table_name}_' + datetime.now().isoformat()[:10] + '.csv'
+        if os.path.exists(sql_out_file):
+            os.remove(sql_out_file)
+        combined_df.to_csv(sql_out_file, index=True)
+    print(f'\nLOCAL COPY OF {sql_out_file} STORED AT {output_dir}\n')
 
     # Rename the columns sequentially
     new_columns = {col: f'col_{i+1}' for i, col in enumerate(combined_df.columns[1:])}
@@ -713,7 +814,7 @@ def add_columns(engine, table_name, df : pd.DataFrame, chunk_size = 100000):
         print("Error uploading the DataFrame:", e)
     # print(f'{table_name} written to SQL')
 
-def create_new_table(engine, table_name, df : pd.DataFrame, chunk_size = 100000):
+def create_new_table(engine, table_name, df : pd.DataFrame, chunk_size = 10000):
     print(f'\nCREATING {table_name}\n')
     pool = engine.pool
     print(pool.status())
@@ -746,7 +847,10 @@ def process_databases(database_input_df_dict):
     # If database doesnt equal current or not in HA_channels list
     for database_name, df in database_input_df_dict.items():
         print(f"writing into {database_name}")
-        engine = create_engine(f'mysql+mysqlconnector://{username}:{password}@{host}/{database_name}', pool_size=400, max_overflow=800)
+        engine = create_engine(f'mysql+mysqlconnector://{username}:{password}@{host}/{database_name}', pool_size=400, max_overflow=800, 
+                               connect_args={
+                                   'connect_timeout' : 60,
+                               })
         inspector = inspect(engine) 
         # plates must be distinct or else we will override data
         if database_name == 'voltage': table = database_name + '_table_' + f'{datetime.now().month}_{datetime.now().year}' + f'_harvard{harvard}'

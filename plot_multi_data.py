@@ -14,8 +14,7 @@ paths = ["C:/Users/microscope/Desktop/SkeletalStimLogs/SkelStimWebApp/voltage_ta
 # paths = ["C:/Users/microscope/Desktop/SkeletalStimLogs/SkelStimWebApp/voltage_table_8_2024_harvard1_archive.csv"]
 # paths = ["C:/Users/microscope/Desktop/SkeletalStimLogs/Lead 7_8/voltage_exp_8_2024_lead_7_8.csv"]
 # paths = ["C:/Users/microscope/Desktop/SkeletalStimLogs/lead9/voltage_exp_7_2024.csv"]
-paths = ["C:/Users/microscope/Desktop/SkeletalStimLogs/Lead 7_8/voltage_exp_8_2024_lead_7_8.csv", 
-        "C:/Users/microscope/Desktop/SkeletalStimLogs/Lead 9_10/voltage_exp_8_2024_lead_9_10.csv"]
+paths = ["C:/Users/microscope/Desktop/SkeletalStimLogs/SkelStimWebApp/voltage_table_10_2024_harvard1.csv"]
 
 if not os.path.exists(output_dir):
     os.makedirs(output_dir)
@@ -67,7 +66,8 @@ for i, path in enumerate(paths):
             data_ = y[start : end].values
             time_ = x[start : end].values
         
-            sns.lineplot(x = time_, y = data_, linewidth = .1, alpha = .8, color = 'red')
+            # sns.lineplot(x = time_, y = data_, linewidth = .1, alpha = .8, color = 'red')
+            sns.scatterplot(x = time_, y = data_, s = 5, alpha = .8, color = 'red')
             # Enhance plot aesthetics
             plt.xlabel('Time (s)', fontsize=10)
             x_ticks = np.arange(start/read_frequency, end/read_frequency, 10)
@@ -75,8 +75,8 @@ for i, path in enumerate(paths):
             # plt.axhline(y = 5, color = 'black', linewidth = .5, alpha = .5)
             # plt.axhline(y = -5, color = 'black', linewidth = .5, alpha = .5)
             plt.ylabel('Voltage (v)', fontsize=10)
-            y_ticks = np.arange(-3, 3, 0.5)
-            plt.yticks(y_ticks, fontsize=8)
+            # y_ticks = np.arange(-3, 3, 0.5)
+            # plt.yticks(y_ticks, fontsize=8)
 
             plt.title(title_, fontsize=10)
             plt.grid(True)

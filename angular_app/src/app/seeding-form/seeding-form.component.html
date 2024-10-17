@@ -14,23 +14,47 @@
       </select>
       <!-- <input type="number" id="num" name="num" [(ngModel)]="num" required> -->
     </div>
+
     <div>
-      <label for="HarvardAparatus">Harvard Aparatus (#):</label>
+      <label for="HarvardAparatus">Stimulator (#):</label>
       <select type="number" id="HarvardAparatus" name="HarvardAparatus" [(ngModel)]="HarvardAparatus" required>
-        <option *ngFor = "let number of possibleHarvards" type = "number" [ngValue] = number>Harvard {{number}}</option>
+        <option *ngFor = "let number of possibleHarvards" type = "number" [ngValue] = number>
+          {{
+          number == 1? 'S88X 11' :
+          number == 2? 'Harvard 2':
+          number == 3? 'Harvard 3' :
+          ''
+        }}</option>
       </select>
     </div>
-    <div>
-      <label for="platformCode">Platform Code:</label>
-      <input type="text" id="platformCode" name="platformCode" [(ngModel)]="platformCode" required>
-    </div>
+
+    <!-- <div>
+      <label for = "k">Seeding Number</label>
+      <select type="number" id="k" name="k" [(ngModel)]="k" required>
+        <option *ngFor = "let num of Seeding" type = "number" [ngValue]="num">Seeding {{num + 1}}</option>
+      </select>
+    </div> -->
+
     <div>
       <label for="cellLine">Cell Line:</label>
-      <input type="text" id="cellLine" name="cellLine" [(ngModel)]="cellLine" required>
+      <select type="text" id="cellLine" name="cellLine" [(ngModel)]="cellLine" required>
+        <option *ngFor = "let cell of cellLines" type = "text" [ngValue]="cell">{{cell}}</option>
+      </select>
     </div>
+
+    <div>
+      <label for="platformCode">Platform Code:</label>
+      <select type="text" id="platformCode" name="platformCode" [(ngModel)]="platformCode" required>
+        <option *ngFor = "let plt of platformCodes" type = "text" [ngValue]="plt">{{plt}}</option>
+      </select>
+    </div>
+  
+
     <div>
       <label for="name">Your Name:</label>
-      <input type="text" id="name" name="name" [(ngModel)]="name" required>
+      <select type="text" id="name" name="name" [(ngModel)]="name" required>
+        <option *ngFor = "let usr of Users" type = "text" [ngValue]="usr">{{usr}}</option>
+      </select>
     </div>
     <div>
       <label for="pulseOnLength">Pulse On (s) - Default : 1s:</label>
@@ -52,14 +76,14 @@
       <label for="stimulationStart">Stimulation Start:</label>
       <input type="datetime-local" id="stimulationStart" name="stimulationStart" [(ngModel)]="stimulationStart" required>
     </div>
-    <!-- <div>
-      <label for="numDays">Number of Stimulation Days</label>
-      <input type="number" id = "numDays" name = "numDays" [(ngModel)]="stimulationStart" required>
-    </div> -->
     <div>
+      <label for="numDays">Number of Stimulation Days</label>
+      <input type="number" id = "numDays" name = "numDays" [(ngModel)]="numDays" required>
+    </div>
+    <!-- <div>
       <label for="stimulationEnd">Stimulation End:</label>
       <input type="datetime-local" id="stimulationEnd" name="stimulationEnd" [(ngModel)]="stimulationEnd" required>
-    </div>
+    </div> -->
     <button type="submit">Configure Plates</button>
     <button type="button" (click)="onCancel()">Cancel</button>
   </form>

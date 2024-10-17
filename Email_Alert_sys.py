@@ -8,6 +8,11 @@ import pandas as pd
 import sys 
 import datetime
 from datetime import datetime
+from sqlalchemy import create_engine, inspect
+
+username = 'nallen'
+password = 'wtQGQ6EX.*zA6Zh'
+host = '10.10.100.41'
 
 def SkelStimError(text_file, name):
 
@@ -66,7 +71,7 @@ def MissingSKelStim(plate, date, num):
     mailserver.quit()
 
 # def SkelStimRangeErr(plate, signal, val, date, HA):
-def SkelStimRangeErr(errors_list):
+def SkelStimRangeErr(errors_list, variables):
 #  tup = [plate, 'snr', data, date, HA_]
     import smtplib
     from email.mime.multipart import MIMEMultipart
@@ -75,12 +80,6 @@ def SkelStimRangeErr(errors_list):
     id_sender = 'skeletalstimulation@gmail.com'
     password_sender = 'ftey xyeq jlwv llqx' # NOTE THAT THIS IS FROM GOOGLE GMAIL APP PASSWORDS AT BOTTOM OF 2FA
     id_receipients = ['nallen@valohealth.com']
-    '''plate = plt
-    signal = tup_[0]
-    val = tup_[1]
-    parts = data_stat.split('_')
-    date = parts[0]
-    HA = tup_[2]'''
     content = ''
     # tup = [plt, date, stat, data_, HA_]
     for item in errors_list:
@@ -88,8 +87,10 @@ def SkelStimRangeErr(errors_list):
         signal = item[2]
         val = item[3]
         date = item[1]
-        HA = item[4]
-        line = f'Skeletal Stimulation {signal} is not expected for \n plate : {plate} of Harvard Aparatus {HA} on excercise period {date}. The value was {val} which is outside the expected range'
+        HA = variables[plate]['HarvardAparatus']
+        expected = item[4]
+        line = f'''Skeletal Stimulation {signal} is not expected for \n plate : {plate} of Harvard Aparatus {HA} 
+        on excercise period {date}. The value was {val} which is outside the expected range of {expected}'''
         content += '\n' + line + '\n'
 
     msg = MIMEMultipart()
@@ -114,6 +115,7 @@ def SkelStimRangeErr(errors_list):
 
 err_dir = "C:/Users/microscope/Desktop/SkeletalStimLogs/ErrorCallback"
 call_dir = "C:/Users/microscope/Desktop/SkeletalStimLogs/Callback"
+base_dir = "C:/Users/microscope/Desktop/SkeletalStimLogs"
 
 # Check if the directory exists
 if not os.path.exists(err_dir):
@@ -134,137 +136,173 @@ else:
             new_file_path = os.path.join(call_dir, text_file)
             shutil.move(file_path, new_file_path)
 
+# Check if the directory exists
+if datetime.now().hour % 12 == 0:
+    if not os.path.exists(base_dir):
+        pass
+    else:
+        # Get list of all files in the directory
+        files = os.listdir(base_dir)
+        files =[f for f in files if f.endswith('.txt')]
+        # Check if the directory is empty
+        if len(files) == 0:
+            pass
+        else:
+            print("Terminated Python Script Files Found")
+            content = 'Files left from a terminated Python script have been found \n \n'
+            idx = 0
+            for text_file in files:
+                file_path = os.path.join(base_dir, text_file)
+                with open(file_path, 'r') as file:
+                    text_file_content = file.read()
+                    file_num = f'\n\nFile Number {idx} : {text_file}\n'
+                    content += file_num
+                    content += text_file_content
+                new_file_path = os.path.join(call_dir, text_file)
+                shutil.move(file_path, new_file_path)
+                idx += 1
+            SkelStimError(content, '')
 
-summary_stats_HA1 = "C:/Users/microscope/Desktop/SkeletalStimLogs/SkelStimWebApp/summary_stats_table_harvard1.csv"
-summary_stats_HA2 = "C:/Users/microscope/Desktop/SkeletalStimLogs/SkelStimWebApp/summary_stats_table_harvard2.csv"
+# engine_summary_stats = create_engine(f'mysql+mysqlconnector://{username}:{password}@{host}/summary_stats', pool_size=400, max_overflow=800)
+# inspector = inspect(engine_summary_stats) 
 
-with open('variables.json', 'r') as file:
-    variables = json.load(file)
+# summary_stats_table_list = []
+# for i in range(1,4):
+#     if inspector.has_table(f'summary_stats_table_harvard{i}'):
+#         table = pd.read_sql_table(f'summary_stats_table_harvard{i}', engine_summary_stats)
+#         summary_stats_table_list.append(table)
+        
+# if not summary_stats_table_list:
+#     raise Exception('NO SUMMARY STATS')
 
-HA1_Running = False
-HA2_Running = False
-HA1_plates = []
-HA2_plates = []
-# All plates in the vars dict are already active
-for plate, vars_dict in variables.items():
-    print( vars_dict['HarvardAparatus'])
-    if vars_dict['HarvardAparatus'] == 1:
-        HA1_Running = True
-        HA1_plates.append(plate)
-    elif vars_dict['HarvardAparatus'] == 2:
-        HA2_Running = True
-        HA2_plates.append(plate)
+# summary_stats_table = pd.concat(table for table in summary_stats_table_list)
+# summary_stats_table = summary_stats_table.sort_values(by='day_time', ascending=False)
 
-exit = False
-if not os.path.exists(summary_stats_HA1) and HA1_Running:
-    exit = True 
-    MissingSKelStim('entire HA1', '0', datetime.now())
-else:
-    print('HA1 properly configured')
-if not os.path.exists(summary_stats_HA2) and HA2_Running:
-    exit = True
-    MissingSKelStim('entire HA2', '0', datetime.now())
-else:
-    print('HA2 properly configured')
-if exit : sys.exit(1)
+# output_dir = 'C:\\Users\\microscope\\Desktop\\SkeletalStimLogs\\'
+# if not os.path.exists(output_dir):
+#     os.makedirs(output_dir)
+# out_file = output_dir + f'entire_sum_stats.csv' #{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+# if os.path.exists(out_file):
+#     os.remove(out_file)
+# summary_stats_table.to_csv(out_file, index=True)
 
-if HA1_Running : summary_stats_HA1 = pd.read_csv(summary_stats_HA1)
-if HA2_Running : summary_stats_HA2 = pd.read_csv(summary_stats_HA2)
+# with open('variables.json', 'r') as file:
+#     variables = json.load(file)
 
-for ha_list, sum_stats in zip([HA1_plates, HA2_plates], [summary_stats_HA1, summary_stats_HA2]):
-    for plate in ha_list:
-        plate_rows = sum_stats.loc[sum_stats['plate_id'] == plate]
-        day_time_list = plate_rows['day_time']
-        num = sum(1 for day in day_time_list if pd.to_datetime(day) > (datetime.now() - pd.Timedelta(hours=16)))
-        start =  pd.to_datetime(variables[plate]['stimulation_start']) 
-        if num < 2 and start > (datetime.now() - pd.Timedelta(hours=16)):
-            MissingSKelStim(plate, datetime.now(), num)
-        else :
-            print(f"Proper stimulation for {plate}")
+# HA1_Running = False
+# HA2_Running = False
+# HA1_plates_set = set()
+# HA2_plates_set = set()
+# activate_plates_set = set()
+# missing_stim_plates_set = set()
 
-'''
-mean, median	
-std, variance
-min, max
-range	
-rms, snr	
-energy	
-pos peaks count
-pos peaks mean, pos peaks median
-pos peaks std	
-pos peaks min, pos peaks max	
-neg peaks count
-neg peaks mean, neg peaks median	
-neg peaks std	
-neg peaks min, neg peaks max
-'''
-with open('all_errors.json', 'r') as file:
-    all_errors = json.load(file)
-errors = []
-valid = True
+# # All plates in the vars dict are already active
+# for plate, vars_dict in variables.items():
+#     if vars_dict['HarvardAparatus'] == 1:
+#         HA1_Running = True
+#         HA1_plates_set.add(plate)
+#     elif vars_dict['HarvardAparatus'] == 2:
+#         HA2_Running = True
+#         HA2_plates_set.add(plate)
+#     activate_plates_set.add(plate)
 
-def addErr(stat, table, errs, plt, allErrors, bool_, data_):
-    if plt not in allErrors.keys(): all_errors[plt] = {}
-    date = table.loc[table.index == idx]['day_time'].iloc[0]
-    tup = [plt, date, stat, data_, HA_]
-    key = date + '_' + stat
-    if key not in all_errors[plate].keys(): 
-        bool_ = False
-        allErrors[plate][key] = []
-        allErrors[plate][key].append(tup[2:])
-        errors.append(tup)
-    return errs, allErrors, bool_
+# exit = False
 
-# def SkelStimRangeErr(plate, signal, date, HA):
-for plate, param_dict in variables.items(): 
-   
-    if plate in HA1_plates:
-        sum_stats = summary_stats_HA1
-        HA_ = 1
-    else : 
-        sum_stats = summary_stats_HA2
-        HA_ = 2
+# def check_missing_logs(Stimulator_plates_set : set, missing_stim_plates_set : set, summary_stats_table : pd.DataFrame):
+#     activate_Stim_plates_df = pd.DataFrame()
+#     activate_Stim_plates_df = summary_stats_table.loc[summary_stats_table['plate_id'].isin(Stimulator_plates_set)]
+#     activate_Stim_plates_set = set(activate_Stim_plates_df.iloc[0])
+#     missing_stim_plates_set.union(activate_Stim_plates_set.difference(activate_Stim_plates_set))
+#     return missing_stim_plates_set, activate_Stim_plates_df
 
-    snr = sum_stats['snr']
-    for idx, data in enumerate(snr): 
-        if data < .01 * param_dict['pulseOnLength'] or data > param_dict['pulseOnLength']/param_dict['cycleLength'] :
-            '''if plate not in all_errors.keys(): all_errors[plate] = {}
-            date = sum_stats.loc[sum_stats.index == idx]['day_time'].iloc[0]
-            tup = [plate, date, 'snr', data, HA_]
-            if date not in all_errors[plate].keys(): 
-                valid = False
-                all_errors[plate][date] = []
-                all_errors[plate][date].append(tup[2:])
-                errors.append(tup)'''
-            errors, all_errors, valid = addErr('snr', sum_stats, errors, plate, all_errors, valid, data)
+# missing_stim_plates_set, activate_HA1_summary_stats = check_missing_logs(HA1_plates_set, missing_stim_plates_set, summary_stats_table)
+# missing_stim_plates_set, activate_HA2_summary_stats = check_missing_logs(HA2_plates_set, missing_stim_plates_set, summary_stats_table)
 
-    mean = sum_stats['mean']
-    for idx, data in enumerate(mean): 
-        if abs(data) > .1:
-            errors, all_errors, valid = addErr('mean', sum_stats, errors, plate, all_errors, valid, data)
+# if activate_HA1_summary_stats.empty and HA1_Running:
+#     exit = True 
+#     MissingSKelStim('entire HA1', '0', datetime.now())
+# else:
+#     print('HA1 properly configured')
 
-    max, min = sum_stats['max'], sum_stats['min']
-    for idx, (max, min) in enumerate(zip(max, min)): 
-        if max > 5.1 or min < -5.1:
-            data = (max, min) if max and min else []
-            errors, all_errors, valid = addErr('minmax', sum_stats, errors, plate, all_errors, valid, data)
+# if activate_HA2_summary_stats.empty and HA2_Running:
+#     exit = True 
+#     MissingSKelStim('entire HA1', '0', datetime.now())
+# else:  
+#     print('HA2 properly configured')
 
-    range = sum_stats['range']
-    for idx, data in enumerate(range):
-        if data > 11 or data < 9:
-            errors, all_errors, valid = addErr('range', sum_stats, errors, plate, all_errors, valid, data)
+# if exit : sys.exit(1)
 
-    pos_peaks, neg_peaks = sum_stats['pos peaks count'], sum_stats['neg peaks count']
-    for idx, (pp, np) in enumerate(zip(pos_peaks, neg_peaks)): 
-        if pp != np or pp != (param_dict['timeSampling'] / param_dict['cycleLength']) * param_dict['stimFreq'] or not pp or not np:
-            data = (pp, np) if not pd.isna(pp) and not pd.isna(np) else []
-            errors, all_errors, valid = addErr('peaks', sum_stats, errors, plate, all_errors, valid, data)
+# for plate in missing_stim_plates_set:
+#     plate_rows = summary_stats_table.loc[missing_stim_plates_set['plate_id'] == plate]
+#     day_time_list = plate_rows['day_time']
+#     num = sum(1 for day in day_time_list if pd.to_datetime(day) > (datetime.now() - pd.Timedelta(hours=8)))
+#     start =  pd.to_datetime(variables[plate]['stimulation_start']) 
+#     if num < 1 and start > (datetime.now() - pd.Timedelta(hours=16)):
+#         MissingSKelStim(plate, datetime.now(), num)
+#     else :
+#         print(f"Proper stimulation for {plate}")
 
-if not valid : 
-    pass
-    SkelStimRangeErr(errors)
-else : 
-    print('Normal Stimulation!')
+
+# with open('all_errors.json', 'r') as file:
+#     all_errors = json.load(file)
+# errors = []
+# valid = True
+
+# def addErr(stat, data, expected_data, plate, date, errors, all_errors, valid):
+#     if plate not in all_errors.keys(): all_errors[plate] = {}
+#     tup = [plate, date, stat, data, expected_data]
+#     date = date.isoformat()[:16]
+#     key = date + '_' + stat
+#     if key not in all_errors[plate].keys(): 
+#         valid = False
+#         all_errors[plate][key] = []
+#         all_errors[plate][key].append(tup[2:])
+#         errors.append(tup)
+#     return errors, all_errors, valid
+
+# for plate, param_dict in variables.items(): 
+    
+#     cycle_length = param_dict['cycleLength']
+#     expected_stimFreq = param_dict['stimFreq']
+#     t_sampling = param_dict['timeSampling']
+
+#     peak = .7 #V
+#     v_stim = 5 #V
+#     min_current = 50 # mA 
+#     expected_current = 85 # ma
+    
+#     plate_sum_stats_df = summary_stats_table.loc[summary_stats_table['plate_id'] == plate]
+#     for idx, row in plate_sum_stats_df.iterrows(): 
+
+#         full_charge_difference = row ['full charge difference (C)']
+#         neg_max = row['neg peaks max(V)']
+#         pos_max = row['pos peaks max(V)']
+#         stimFreq = row['frequency(Hz)']
+#         avg_pos_current = row['avg pos i (mA)']
+#         avg_neg_current = row['avg neg i (mA)']
+#         date = row['day_time']
+
+#         if abs(full_charge_difference > .1) : 
+#             errors, all_errors, valid = addErr('charge', full_charge_difference, '< .1', plate, date, errors, all_errors, valid)
+        
+#         if abs(neg_max) > peak * 2 or pos_max > peak * 2: 
+#             data = (neg_max, pos_max)
+#             expected = f'neg pulse max > {-peak * 2} and pos pulse max <  {peak * 2}'
+#             errors, all_errors, valid = addErr('(neg pulse max, pos pulse max)', data, expected, plate, date, errors, all_errors, valid)
+        
+#         if stimFreq != expected_stimFreq:
+#             errors, all_errors, valid = addErr('Stimulation Frequency', stimFreq, expected_stimFreq, plate, date, errors, all_errors, valid)
+
+#         if avg_pos_current < min_current or avg_pos_current > expected_current * .5 or abs(avg_neg_current) < min_current or abs(avg_neg_current) > expected_current * 1.5: 
+#             data = (avg_pos_current, avg_neg_current)
+#             expected = f'abs val current phases > {min_current} and average pos current = {expected_current} +/- {.5 * expected_current} and avg neg current {-expected_current} +/- {.5 * -expected_current}'
+#             errors, all_errors, valid = addErr('(pos current, neg current)', data, expected, plate, date, errors, all_errors, valid)
+
+# if not valid : 
+#     print('** New Error Detected **')
+#     SkelStimRangeErr(errors, variables)
+# else : 
+#     print('Normal Stimulation!')
                 
-with open('all_errors.json', 'w') as file:
-    json.dump(all_errors, file, indent=4)
+# with open('all_errors.json', 'w') as file:
+#     json.dump(all_errors, file, indent=4)

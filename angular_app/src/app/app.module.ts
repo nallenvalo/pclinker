@@ -1,12 +1,12 @@
 import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { provideHttpClient, withFetch} from '@angular/common/http';  // Import provideHttpClient
-
+import { CheckConnectionComponent } from './check-connection/check-connection.component';
 import { AppComponent } from './app.component';
 
 @NgModule({
   declarations: [
-    AppComponent
+    AppComponent, CheckConnectionComponent
   ],
   imports: [
     BrowserModule,
@@ -15,3 +15,4 @@ import { AppComponent } from './app.component';
   bootstrap: [AppComponent]
 })
 export class AppModule { }
+

@@ -18,3 +18,10 @@ class Config:
     SQLALCHEMY_DATABASE_URI = f'mysql+pymysql://{MYSQL_USER}:{New_MYSQL_PASSWORD}@{New_MYSQL_HOST}/app_data'
     
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'pool_size': 40,
+        'max_overflow': 80,
+        'pool_timeout': 60,
+        'pool_pre_ping': True,
+    }

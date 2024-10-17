@@ -15,7 +15,7 @@ call C:\Users\microscope\webApp\.venv\Scripts\activate.bat
 cd C:\Users\microscope\webApp
 
 :: Run the Python script and redirect stdout and stderr to separate temporary log files
-python C:\Users\microscope\webApp\SkelStim_TDMS_SQL_Flask_NG.py 1 1> %TEMPLOG_SUCCESS% 2> %TEMPLOG_ERROR%
+python C:\Users\microscope\webApp\SkeletalStimulation.py 1 1> %TEMPLOG_SUCCESS% 2> %TEMPLOG_ERROR%
 
 :: Check if the temporary error log file is empty
 for %%A in (%TEMPLOG_ERROR%) do if %%~zA neq 0 (

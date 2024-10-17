@@ -1,35 +1,289 @@
 <!-- src/app/app.component.html -->
 <div>
   <header>
-    <h1>Valo Health Skeletal Stimulators</h1>
-    <h2>Plate Tracker & Stimulation Report for Maturing Skeletal Tissues</h2>
+    <h1>
+      <!-- <img src="Zap.png" class="Header-inline-logo"> -->
+      Valo Health Skeletal Stimulation
+      <!-- <img src="Zap.png" class="Header-inline-logo"> -->
+
+    </h1>
+    <!-- <h2>Plate Tracker & Stimulation Report for Maturing Skeletal Tissues</h2> -->
   </header>
   <div class="button-bar">
-    <button class="btn-primary" (click)="toggleForm()">Add Seeding</button>
-    <button class="btn-primary" (click)="refreshMaturation(); fetchPlates();">Refresh</button>
-    <button class="btn-primary" (click)="toggleApplyChanges()">
-      {{ applyChangesMode ? 'Cancel Changes' : 'Apply Changes' }}
+
+    <button class="btn-primary" (click)="refreshMaturation(); fetchPlates();">
+      Refresh
+      <img src="Refresh3.png" class="Refresh-inline-logo">
     </button>
-    <button class="btn-primary" (click)="toggleFilterDropdown()">{{!showFilterDropdown? 'Filter' : 'Save Selection'}}</button>
-    <button class="btn-secondary">Data Query Page</button>
+
+    <button (click)="toggleFilterDropdown()" 
+      [ngClass]="{
+      'btn-primary' : !showFilterDropdown,
+      'btn-primary-alt' : showFilterDropdown
+      }">
+      {{!showFilterDropdown? 'Filter Plates' : 'Save Selection'}}
+      <img src="Filter2.png" class="filter-inline-logo" *ngIf = "!showFilterDropdown">
+      <img src="Save.png" class="filter-inline-logo" *ngIf = "showFilterDropdown">
+    </button>
+
+    <button (click) = "toggleConfigTable()"
+      [ngClass]="{
+      'btn-primary' : !showConfigTable,
+      'btn-primary-alt' : showConfigTable
+      }">
+      {{ !showConfigTable ? 'Configuration Table' : 'Hide Table' }}
+      <img src="Table.png" class="settings-inline-logo" *ngIf = "!showConfigTable">
+      <img src="hide.png" class="settings-inline-logo" *ngIf = "showConfigTable">
+    </button>
+
+    <!-- <button class="btn-primary" (click)="toggleCompress()">
+      {{ !compress? 'Expand' : 'Compress' }}
+      <img src="Minimize.png" class="Minimize-inline-logo" *ngIf = "compress">
+      <img src="Maximize.png" class="Minimize-inline-logo" *ngIf = "!compress">
+    </button> -->
+
+    <button (click)="toggleCheckTable()"
+      [ngClass]="{
+      'btn-primary' : !CheckTable,
+      'btn-primary-alt' : CheckTable
+      }">
+      {{!CheckTable? 'Check Connection' : 'Close Report'}}
+      <img src="Zap.png" class="Edit-inline-logo" *ngIf = "!CheckTable">
+      <img src="hide.png" class="Edit-inline-logo" *ngIf = "CheckTable">
+    </button>
+
+    <button (click)="toggleForm()"
+      [ngClass]="{
+      'btn-primary' : !showForm,
+      'btn-primary-alt' : showForm
+      }">
+      {{showForm ? 'Cancel Seeding ' : 'Add Seeding'}}
+      <img src="Plus.png" class="Plus-inline-logo" *ngIf = "!showForm">
+      <img src="hide.png" class="Plus-inline-logo" *ngIf = "showForm">
+    </button>
+
+    <button (click)="toggleApplyChanges()"
+      [ngClass]="{
+      'btn-primary' : !applyChangesMode,
+      'btn-primary-alt' : applyChangesMode
+      }">
+      {{ applyChangesMode ? 'Cancel Changes' : 'Apply Changes' }}
+      <img src="Edit.png" class="Edit-inline-logo" *ngIf = "!applyChangesMode">
+      <img src="hide.png" class="Plus-inline-logo" *ngIf = "applyChangesMode">
+    </button>
+
+    <button (click) = "toggleShowMeta()" class = More-button>
+      <img src="More.png" class="More-button">
+    </button>
   </div>
-  <div *ngIf="showFilterDropdown" class="filter-dropdown-container">
-    <app-filter-dropdown (filterChange)="onFilterChange($event)"></app-filter-dropdown>
-  </div>
-  <div class="content">
-    <h3>Seedings</h3>
-    <img src="valoLogo2.png" class="backgroundIMG">
-    <div *ngIf="showForm">
-      <app-seeding-form [plate]="selectedPlate" [selectedIndex]="selectedIndex" [existingPlates]="plate_logs" (addSeeding)="addNewPlate($event)" (allAdded)="allAdded()" (cancelForm)="cancelForm()"></app-seeding-form>
+  <p class = 'filter-text'>Showing {{filter_text}} plates</p>
+  <div class = "main-container">
+    <div class="content">
+      <div *ngIf="showFilterDropdown" class="filter-dropdown-container">
+        <app-filter-dropdown (filterChange)="onFilterChange($event)" [currentFilters] = "filters.harvardAparatus"></app-filter-dropdown>
+      </div>
+      <!-- <h3>Seedings</h3> -->
+      <img src="valoLogo2.png" class="backgroundIMG">
+
+      <div *ngIf = "CheckTable">
+        <app-check-connection [existingPlates] = "plate_logs" ></app-check-connection>
+      </div>
+      
+      <div *ngIf = "showConfigTable">
+        <app-config-table [existingPlates]="plate_logs"></app-config-table>
+      </div>
+      
+      <div *ngIf="plate_logs.length === 0">
+        <p>Click 'Add Seeding' to add your plates!</p>
+      </div>
+      <div class="plate-log-container">
+        <div *ngFor="let plateLog of getFilteredPlateLogs(); let i = index" 
+          [ngClass]=
+          "{
+            'plate-log-box-error' : !plateError(plateLog),
+            'plate-log-box' : plateError(plateLog)
+          }">
+          <button *ngIf="!editMode" class="delete-btn" (click)="deletePlate(getIndex(plateLog))">X</button>
+          <button *ngIf="editMode" class="edit-btn" (click)="editPlate(i)">Edit</button>
+          <h4>{{ plateLog.plateName }}
+            <img src="valoLogo9.png" class="inline-logo" *ngIf = "plateError(plateLog)">
+            <img src="Alert.png" class="inline-logo" *ngIf = "!plateError(plateLog)">
+          </h4>
+          <div class = "custom">Seeded or last modified by : {{plateLog.name}}</div>
+          <div>Maturation Progress : {{plateLog.getMaturationPercentage() | number:'1.2-2'}}%</div>
+          <div class="progress-bar">
+            <div class="progress" [style.width.%]="plateLog.getMaturationPercentage()"></div>
+          </div>
+          <div class="user-controlled" *ngIf="compress">
+            <h5>Configuration Variables</h5>
+            <p><strong>Harvard Aparatus (#): </strong>{{ plateLog.HarvardAparatus }}</p>
+            <p><strong>Channel (#): </strong>{{ plateLog.Channel }}</p>
+            <!-- <p><strong>Pulse On (s):</strong> {{ plateLog.pulseOnLength }}</p>
+            <p><strong>Cycle Length (s):</strong> {{ plateLog.cycleLength }}</p>
+            <p><strong>Stim Frequency (Hz):</strong> {{ plateLog.stimFreq }}</p>
+            <p><strong>Time Sampling (s):</strong> {{ plateLog.timeSampling }}</p> -->
+            <p><strong>Stimulation Start: </strong>{{ plateLog.stimulation_start | date: 'MM/dd/yy' }}</p>
+            <p><strong>Full Maturation: </strong>{{ plateLog.stimulation_end | date: 'MM/dd/yy' }} </p>
+            <p><strong>Pharmacological: </strong>{{ plateLog.pharmacological ? 'Yes' : 'No' }}</p>
+          </div>
+          <div class="data-reports">
+            <div class="data-report">
+              <h6>{{plateLog.Report_time1 | date: 'short'}}</h6>
+              <p><strong>Current(mA) : </strong><alert_cur
+                [ngClass] = "{
+                  'alert_curr' : ((plateLog.current1 &lt; 50) && firstTwoStimsRan(plateLog)) ,
+                  'reg' : (plateLog.current1 &gt; 50) || !firstTwoStimsRan(plateLog)
+                }">
+                {{ plateLog.current1 }}
+              </alert_cur>
+              </p>
+              <p><strong>Charge(mQ) : </strong><alert_cur
+                [ngClass] = "{
+                  'alert_curr' : (plateLog.chargeDifference1 &gt; 50) && firstTwoStimsRan(plateLog) || (plateLog.chargeDifference2 &lt; -50) && firstTwoStimsRan(plateLog)
+                }">
+                {{ plateLog.chargeDifference1 }}
+              </alert_cur></p>
+              <p><strong>Stim Freq(Hz) : </strong>
+                <alert_cur
+                  [ngClass] = "{
+                    alert_curr : plateLog.stimFreq != plateLog.frequency1 && firstTwoStimsRan(plateLog)
+                  }">
+                {{ plateLog.frequency1}}
+                </alert_cur>
+              </p>
+              <p><strong>Pulse Dur(mS) : </strong>{{ plateLog.pulseDuration1 }}</p>
+              <!-- <p><strong>RMS : </strong>{{ plateLog.rms1}}</p> -->
+            </div>
+            <div class="data-report">
+              <h6>{{plateLog.Report_time2 | date: 'short' }}</h6>
+              <p><strong>Current(mA) : </strong><alert_cur
+                [ngClass] = "{
+                  'alert_curr' : (plateLog.current2 &lt; 50) && firstTwoStimsRan(plateLog),
+                  'reg' : (plateLog.current2 &gt; 50) || !firstTwoStimsRan(plateLog)
+                }">
+                {{ plateLog.current2 }}
+              </alert_cur>
+              </p>
+              <p><strong>Charge(mQ) : </strong>
+                <alert_cur
+                  [ngClass] ="{
+                    'alert_curr' : (plateLog.chargeDifference2 &gt; 50) && firstTwoStimsRan(plateLog) || (plateLog.chargeDifference2 &lt; -50) && firstTwoStimsRan(plateLog)
+                  }"
+                  >
+                  {{ plateLog.chargeDifference2 }}
+                </alert_cur>
+              </p>
+              <p><strong>Stim Freq(Hz) : </strong>
+                <alert_cur 
+                  [ngClass] = "{
+                    'alert_curr' : plateLog.stimFreq != plateLog.frequency2 && firstTwoStimsRan(plateLog)
+                  }">
+                  {{ plateLog.frequency2 }}
+                </alert_cur>
+              </p>
+              <p><strong>Pulse Dur(mS) : </strong>{{ plateLog.pulseDuration2 }}</p>
+              <!-- <p><strong>RMS : </strong>{{ plateLog.rms1 }}</p> -->
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
+    <div *ngIf = "showMeta" class = "SideBar">
+      <button class = "btn-secondary" (click) = "toggleSettings()">
+        {{showSettings? 'Hide Settings' : 'Settings'}}
+        <img src="Settings.png" class="settings-inline-logo" *ngIf = "!showSettings">
+        <img src="hide.png" class="settings-inline-logo" *ngIf = "showSettings">
+      </button>
+      <div *ngIf = "showSettings">
+      
+        <button class = "side-bar-button" (click) = "toggleCell()">
+          {{editCellLines ? 'Done' : 'Edit Cell Lines'}}
+        </button>
+        <div *ngIf = "editCellLines">
+          <input [(ngModel)] = "tempCell" name = "tempCell" placeholder="TC..."/>
+          <div>
+            <button (click) = "addCell()">Add Code</button>
+          </div>
+          <div *ngFor = "let cell of cellLines; let i = index">
+            {{cell}}
+            <button (click) = "removeCell(i)"> Remove</button>
+          </div>
+          <!-- <div>
+            <button (click) = "saveChangesCell()">Save Changes</button>
+          </div> -->
+        </div>
+
+        <button class = "side-bar-button" (click) = "togglePlatform()">
+          {{editPlatformCodes ? 'Done' : 'Edit Platform Codes'}}
+        </button>
+        <div *ngIf = "editPlatformCodes">
+          <input [(ngModel)] = "tempPlt" name = "tempPlt" placeholder="PL..."/>
+          <div>
+            <button (click) = "addPlatform()">Add Code</button>
+          </div>
+          <div *ngFor = "let code of platformCodes; let i = index">
+            {{code}}
+            <button (click) = "removePlatform(i)"> Remove</button>
+          </div>
+          <!-- <div>
+            <button (click) = "saveChangesPlatform()">Save Changes</button>
+          </div> -->
+        </div>
+
+        <button class = "side-bar-button" (click) = "toggleUsers()">
+          {{editUsers ? 'Done' : 'Edit Users'}}
+        </button>
+        <div *ngIf = "editUsers">
+          <input [(ngModel)] = "tempUsers" name = "tempUsers" placeholder="First Inital. Last..."/>
+          <div>
+            <button (click) = "addUsers()">Add Code</button>
+          </div>
+          <div *ngFor = "let user of Users; let i = index">
+            {{user}}
+            <button (click) = "removeUsers(i)"> Remove</button>
+          </div>
+          <!-- <div>
+            <button (click) = "saveChangesUsers()">Save Changes</button>
+          </div> -->
+        </div>
+      </div>
+
+    <button class="btn-secondary" (click)="toggleCompress()">
+      {{ !compress? 'Expand' : 'Compress' }}
+      <img src="Minimize.png" class="Minimize-inline-logo" *ngIf = "compress">
+      <img src="Maximize.png" class="Minimize-inline-logo" *ngIf = "!compress">
+    </button>
+
+    </div>
+    <div *ngIf="showForm">
+      <app-seeding-form 
+        [plate]="selectedPlate" 
+        [selectedIndex]="selectedIndex" 
+        [existingPlates]="plate_logs" 
+        (addSeeding)="addNewPlate($event)" 
+        (allAdded)="allAdded()" 
+        (cancelForm)="cancelForm()"
+        [platformCodes] = "platformCodes"
+        [cellLines] = "cellLines"
+        [Users] = "Users"
+        >
+      </app-seeding-form>
+    </div>
     <div *ngIf="applyChangesMode" class="apply-changes-form">
-      <div class = "changes-tittle">Change Harvard Apparatus Output</div>
+      <div class = "changes-tittle">Change HA Output</div>
       <form (ngSubmit)="applyChanges()">
         <div>
           <label for="selectedHarvardApparatus">Harvard Apparatus:</label>
           <select id="selectedHarvardApparatus" [(ngModel)]="selectedHarvardAparatus" name="selectedHarvardAparatus" required>
-            <option *ngFor="let harvard of getUniqueHarvardApparatus()" [value]="harvard">{{ harvard }}</option>
+            <option *ngFor="let harvard of getUniqueHarvardApparatus()" [value]="harvard">
+              {{
+                harvard == '1'? 'S88X 11' :
+                harvard == '2'? 'Harvard 2':
+                harvard == '3'? 'Harvard 3' :
+                ''
+              }}
+            </option>
           </select>
         </div>
         <div>
@@ -52,66 +306,21 @@
           <label for="newStimulationStart">Stimulation Start:</label>
           <input type="datetime-local" id="newStimulationStart" [(ngModel)]="newStimulationStart" name="newStimulationStart">
         </div>
-        <div>
+        <!-- <div>
           <label for="newStimulationEnd">Stimulation End:</label>
           <input type="datetime-local" id="newStimulationEnd" [(ngModel)]="newStimulationEnd" name="newStimulationEnd">
+        </div> -->
+        <div>
+          <label for="numDays">Number of Stimulation Days</label>
+          <input type="number" id = "numDays" name = "numDays" [(ngModel)]="numDays" required>
         </div>
         <div>
           <label for="newPharmacological">Pharmacological:</label>
           <input type="checkbox" id="newPharmacological" [(ngModel)]="newPharmacological" name="newPharmacological">
         </div>
         <button type="submit" class="btn-primary">Apply Changes</button>
+        <button class="btn-primary" (click)="toggleApplyChanges()">Cancel</button>
       </form>
-    </div>
-    
-    <div *ngIf="plate_logs.length === 0">
-      <p>No plate logs available.</p>
-    </div>
-    <div class="plate-log-container">
-      <div *ngFor="let plateLog of getFilteredPlateLogs(); let i = index" class="plate-log-box">
-        <button *ngIf="!editMode" class="delete-btn" (click)="deletePlate(i)">X</button>
-        <button *ngIf="editMode" class="edit-btn" (click)="editPlate(i)">Edit</button>
-        <h4>{{ plateLog.plateName }}
-          <img src="valoLogo9.png" class="inline-logo">
-        </h4>
-        <div class = "custom">Seeded or last modified by : {{plateLog.name}}</div>
-        <div>Maturation Progress : {{plateLog.getMaturationPercentage() | number:'1.2-2'}}%</div>
-        <div class="progress-bar">
-          <div class="progress" [style.width.%]="plateLog.getMaturationPercentage()"></div>
-        </div>
-        <div class="user-controlled">
-          <h5>User Controlled Variables</h5>
-          <p><strong>Pulse On (s):</strong> {{ plateLog.pulseOnLength }}</p>
-          <p><strong>Harvard Aparatus (#):</strong> {{ plateLog.HarvardAparatus }}</p>
-          <p><strong>Channel (#):</strong> {{ plateLog.Channel }}</p>
-          <p><strong>Cycle Length (s):</strong> {{ plateLog.cycleLength }}</p>
-          <p><strong>Stim Frequency (Hz):</strong> {{ plateLog.stimFreq }}</p>
-          <p><strong>Time Sampling (s):</strong> {{ plateLog.timeSampling }}</p>
-          <p><strong>Stimulation Start:</strong> {{ plateLog.stimulation_start | date: 'short' }}</p>
-          <p><strong>Stimulation End:</strong> {{ plateLog.stimulation_end | date: 'short' }}</p>
-          <p><strong>Pharmacological:</strong> {{ plateLog.pharmacological ? 'Yes' : 'No' }}</p>
-        </div>
-        <div class="data-reports">
-          <div class="data-report">
-            <h6>Data Report for {{plateLog.Report_time1 | date: 'short'}}</h6>
-            <p><strong>Avg Pulse Voltage</strong>(V): {{ plateLog.voltage1 }}</p>
-            <p><strong>Avg Pulse Duration</strong>(s):{{ plateLog.pulseDuration1 }}</p>
-            <p><strong>Avg Pulse Current</strong>(mA): {{ plateLog.current1 }}</p>
-            <p><strong>Charge Difference:</strong>(V*s):{{ plateLog.chargeDifference1 }}</p>
-            <p><strong>Stim Freq</strong>(Hz):{{ plateLog.frequency1}}</p>
-            <p><strong>Pulse RMS:</strong> {{ plateLog.rms1}}</p>
-          </div>
-          <div class="data-report">
-            <h6>Data Report for {{plateLog.Report_time2 | date: 'short'}}</h6>
-            <p><strong>Avg Pulse Voltage</strong>(V):{{ plateLog.voltage2 }}</p>
-            <p><strong>Avg Pulse Duration</strong>(s):{{ plateLog.pulseDuration2 }}</p>
-            <p><strong>Avg Pulse Current</strong>(mA): {{ plateLog.current2 }}</p>
-            <p><strong>Charge Difference</strong>(V*s):{{ plateLog.chargeDifference2 }}</p>
-            <p><strong>Stim Freq</strong>(Hz):{{ plateLog.frequency2}}</p>
-            <p><strong>Pulse RMS:</strong> {{ plateLog.rms2 }}</p>
-          </div>
-        </div>
-      </div>
     </div>
   </div>
 </div>

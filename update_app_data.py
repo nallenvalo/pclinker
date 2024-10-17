@@ -5,7 +5,6 @@ from datetime import timedelta
 import mysql.connector
 import numpy as np
 import matplotlib.pyplot as plt
-import json
 import scipy
 import logging
 from tabulate import tabulate
@@ -42,6 +41,12 @@ if inspector.has_table('plate_log_data'):
 else : 
     raise Exception('NO PLATE LOGS')
 
+if inspector.has_table('shorted_harvards'):
+    print('SHORTED HARVARD TABLE FOUND')
+    shorted_harvard_df = pd.read_sql_table('shorted_harvards', engine_app_data)
+else : 
+    raise Exception('No harvard aparatus table')
+
 engine_summary_stats = create_engine(f'mysql+mysqlconnector://{username}:{password}@{host}/summary_stats', pool_size=400, max_overflow=800)
 inspector = inspect(engine_summary_stats) 
 # will have to decide if we want to just maintain one summary_stats table for ever
@@ -57,6 +62,7 @@ if inspector.has_table('summary_stats_table'):
 if not summary_stats_table_list:
     raise Exception('NO SUMMARY STATS')
 summary_stats_table = pd.concat(table for table in summary_stats_table_list)
+# print(summary_stats_table)
 
 # print(summary_stats_table)
 # Have to check the plates and have to check the start and endtime of the plates to a list of active plates
@@ -91,6 +97,8 @@ for plate in all_plates:
 '''
 # print(summary_stats_table.columns)
 # print('summary stats daytime values : ', summary_stats_table['day_time'])
+
+
 for plate in active_plates:
     # Find the two most recent values
     row_ = plate_log_data.loc[plate_log_data['plateName'] == plate]
@@ -107,37 +115,37 @@ for plate in active_plates:
         # print(row2)'''
         # may have to rethink what format to use
         Report_time1 = row1['day_time']
-        voltage1 = row1['pos peaks mean']
-        pulseDuration1 = row1['pulseDuration']
-        frequency1 = row1['frequency']
-        current1 = row1['avg pos current']
-        chargeDifference1 = row1['full charge difference']# row1['pos charge'] - row1['neg charge']
-        charge1 = row1['pos charge']
-        energy1 = row1['energy']
-        rms1 = row1['rms']
+        voltage1 = float(row1['pos peaks mean(V)']) if row1['pos peaks mean(V)'] else np.nan
+        pulseDuration1 = row1['pulseDuration(s)'] * 1000
+        frequency1 = row1['frequency(Hz)']
+        current1 = row1['i max average(mA)']
+        chargeDifference1 = row1['full charge difference (C)']  * 1000 # row1['pos charge'] - row1['neg charge']
+        charge1 = row1['pos pulse charge int cal(C)']
+        # energy1 = row1['energy']
+        # rms1 = row1['rms']
         Report_time2 = row2['day_time']
-        voltage2 = row2['pos peaks mean']
-        pulseDuration2 = row2['pulseDuration']
-        frequency2 = row2['frequency']
-        current2 = row2['avg pos current']
-        chargeDifference2  = row2['full charge difference'] # row2['pos charge'] - row2['neg charge']
-        charge1 = row2['pos charge']
-        energy2 = row2['energy']
-        rms2 = row1['rms']
+        voltage2 = float(row2['pos peaks mean(V)']) if row2['pos peaks mean(V)'] else np.nan
+        pulseDuration2 = row2['pulseDuration(s)'] * 1000
+        frequency2 = row2['frequency(Hz)']
+        current2 = row2['i max average(mA)']
+        chargeDifference2  = row2['full charge difference (C)']  * 1000 # row2['pos charge'] - row2['neg charge']
+        charge1 = row2['pos pulse charge int cal(C)']
+        # energy2 = row2['energy']
+        # rms2 = row1['rms']
 
         plate_log_data.loc[plate_log_data['plateName'] == plate, 'Report_time1'] = Report_time1
-        plate_log_data.loc[plate_log_data['plateName'] == plate, 'voltage1'] = round(voltage1, 4)
-        plate_log_data.loc[plate_log_data['plateName'] == plate, 'energy1'] = round(energy1, 3)
-        plate_log_data.loc[plate_log_data['plateName'] == plate, 'rms1'] = round(rms1, 3)
+        plate_log_data.loc[plate_log_data['plateName'] == plate, 'voltage1'] = round(voltage1, 4) 
+        # plate_log_data.loc[plate_log_data['plateName'] == plate, 'energy1'] = round(energy1, 3)
+        # plate_log_data.loc[plate_log_data['plateName'] == plate, 'rms1'] = round(rms1, 3)
         plate_log_data.loc[plate_log_data['plateName'] == plate, 'frequency1'] = round(frequency1, 3)
         plate_log_data.loc[plate_log_data['plateName'] == plate, 'current1'] = round(current1, 1)
         plate_log_data.loc[plate_log_data['plateName'] == plate, 'pulseDuration1'] = round(pulseDuration1, 3)
         plate_log_data.loc[plate_log_data['plateName'] == plate, 'chargeDifference1'] = round(chargeDifference1, 3)
         
         plate_log_data.loc[plate_log_data['plateName'] == plate, 'Report_time2'] = Report_time2
-        plate_log_data.loc[plate_log_data['plateName'] == plate, 'voltage2'] = round(voltage2, 3)
-        plate_log_data.loc[plate_log_data['plateName'] == plate, 'energy2'] = round(energy2, 3)
-        plate_log_data.loc[plate_log_data['plateName'] == plate, 'rms2'] = round(rms2, 3)
+        plate_log_data.loc[plate_log_data['plateName'] == plate, 'voltage2'] = round(voltage2, 3) if voltage2 else voltage2
+        # plate_log_data.loc[plate_log_data['plateName'] == plate, 'energy2'] = round(energy2, 3)
+        # plate_log_data.loc[plate_log_data['plateName'] == plate, 'rms2'] = round(rms2, 3)
         plate_log_data.loc[plate_log_data['plateName'] == plate, 'frequency2'] = round(frequency2, 3)
         plate_log_data.loc[plate_log_data['plateName'] == plate, 'current2'] = round(current2, 1)
         plate_log_data.loc[plate_log_data['plateName'] == plate, 'pulseDuration2'] = round(pulseDuration1, 3)
@@ -148,7 +156,7 @@ for plate in active_plates:
 # Need to update the variables json data
 # SQL drops the index column and will leads to errors when we try to read the model
 # App data data frame is not an accurate representation
-# plate_log_data['id'] = range(0, len(plate_log_data))
+plate_log_data['id'] = range(0, len(plate_log_data))
 # plate_log_data.drop(columns=['id'])
 # plate_log_data.reset_index(inplace=True)
 plate_log_data.to_sql('plate_log_data', con=engine_app_data, if_exists='replace', index=False)
@@ -178,7 +186,9 @@ for plate in active_plates:
 with open('variables.json', 'w') as file:
     json.dump(plate_dict, file, indent=4)
 
-print("JSON file has been updated.")
+print("Updating Harvard Data")
+with open("update_stim_data.py") as f:
+    code = f.read()
+    exec(code)
 
-    
-    
+print("JSON file has been updated.")

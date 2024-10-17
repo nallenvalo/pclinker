@@ -1,0 +1,134 @@
+table {
+  margin-top : 50px;
+  border-radius: 10px;
+  border-bottom-style: double;
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+  box-shadow: 0 2px 4px rgb(0, 0, 0, 1);
+  width: 100%;
+  margin-bottom: 50px;
+  text-align: center;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+table:hover{
+  transform: translateY(-10px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 1);
+}
+
+th {
+  text-align : center;
+  font-size : .9em;
+  font: bold;
+  border: black;
+  border-radius: 10px;
+  background-color: linear-gradient(145deg, #ffffff, #e3d9e9);
+}
+
+td { 
+  text-align: center;
+}
+
+.default-box {
+  margin: 0 5px;
+  text-align: center;
+  padding: 5px 5px;
+  font-size: .75em;
+  cursor: pointer;
+  opacity : .75;
+  background-color:#007bff;
+  border: black;
+  border-radius: 10px;
+  color : #ffffff;
+}
+
+.default-off-box {
+  margin: 0 5px;
+  text-align: center;
+  padding: 5px 5px;
+  font-size: .75em;
+  cursor: pointer;
+  opacity : .75;
+  background-color: #444444;
+  border: black;
+  border-radius: 10px;
+  color : #ffffff;
+}
+
+.off-box{
+  margin: 0 5px;
+  text-align: center;
+  padding: 5px 5px;
+  font-size: .75em;
+  cursor: pointer;
+  background-color: #444444;
+  border: black;
+  border-radius: 10px;
+  color : #ffffff;
+
+}
+
+.on-box{
+  margin: 0 5px;
+  text-align: center;
+  padding: 5px 5px;
+  font-size: .75em;
+  cursor: pointer;
+  background-color:#007bff;
+  border: black;
+  border-radius: 10px;
+  color : #ffffff;
+
+}
+
+.true-box {
+  margin: 0 5px;
+  padding: 5px 5px;
+  text-align: center;
+  font-size: .75em;
+  cursor: pointer;
+  border: black;
+  border-radius: 10px;
+  background-color: #007bff;
+  color : #ffffff;
+}
+
+.open-box {
+  color : #ffffff;
+  margin: 0 5px;
+  padding: 5px 5px;
+  text-align: center;
+  font-size: .75em;
+  cursor: pointer;
+  border: black;
+  border-radius: 10px;
+  background-color: #dfd003;
+}
+
+
+.false-box {
+  color : #ffffff;
+  margin: 0 5px;
+  padding: 5px 5px;
+  text-align: center;
+  font-size: .75em;
+  cursor: pointer;
+  border: black;
+  border-radius: 10px;
+  background-color :#444444;
+}
+
+.real-on-box {
+  margin: 0 5px;
+  text-align: center;
+  padding: 5px 5px;
+  font-size: .85em;
+  font-style: italic;
+  cursor: pointer;
+  /* opacity: .75; */
+  background-color:#5900ff;
+  box-shadow: 0 2px 4px rgba(37, 6, 61, 0.5);
+  border: black;
+  border-radius: 10px;
+  color : #ffffff;
+}
+

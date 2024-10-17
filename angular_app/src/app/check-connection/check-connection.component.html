@@ -1,0 +1,96 @@
+<div class="content">
+    <div *ngIf =  "!reportReady">
+        <div class = "blinking-dots"><strong>Generating Connectivity Report</strong></div>
+        <!-- <div class = blinking-dots>Generating Report</div> -->
+    </div>
+    <div *ngIf =  "reportReady">
+        <h3>Connectivity Report</h3>
+        <!-- <div class = blinking-dots>Generating Report</div> -->
+    </div>
+    <div class="progress-bar">
+        <div 
+            [ngClass] = "{
+            'progress' : progress != 100, 
+            'progress_' : progress == 100 && checkAndStim,
+            'progress_2' : progress == 100 && ExistsErr}"
+            *ngFor = "let plate of plates" 
+            [style.width.%]="progress">
+        </div>
+    </div>
+</div>
+
+<div *ngIf = "reportReady">
+    <table mat-table [dataSource]="dataSource" class="mat-elevation-z8">
+        <ng-container matColumnDef="Platename">
+            <th mat-header-cell *matHeaderCellDef> Plate Name </th>
+            <td mat-cell *matCellDef="let element"
+            [ngClass] = "{
+            'true-box' : element.Stimulating && element.RanCheck,
+            'false-box' : !element.Stimulating || !element.RanCheck
+            }"> {{element.Platename}} </td>
+        </ng-container>
+
+        <ng-container matColumnDef="Harvard">
+            <th mat-header-cell *matHeaderCellDef> Stimulator </th>
+            <td mat-cell *matCellDef="let element"
+            [ngClass] = "{
+            'default-box' : element.Stimulating && element.RanCheck,
+            'default-off-box' : !element.Stimulating || !element.RanCheck
+            }"> 
+            {{
+                element.Harvard == '1'? 'S88X 11' :
+                element.Harvard == '2'? 'Harvard 2':
+                element.Harvard == '3'? 'Harvard 3' :
+                ''
+              }}
+        </td>
+        </ng-container>
+
+        <ng-container matColumnDef="Channel">
+            <th mat-header-cell *matHeaderCellDef> Channel </th>
+            <td mat-cell *matCellDef="let element"
+            [ngClass] = "{
+            'default-box' : element.Stimulating && element.RanCheck,
+            'default-off-box' : !element.Stimulating || !element.RanCheck
+            }"> {{element.Channel}} </td>
+        </ng-container>
+        
+        <ng-container matColumnDef="RanCheck">
+            <th mat-header-cell *matHeaderCellDef> Check Status </th>
+            <td mat-cell *matCellDef="let element"
+            [ngClass] = "{
+            'on-box' : element.RanCheck,
+            'off-box' : !element.RanCheck
+            }"> 
+            {{element.RanCheck ? 'Check Ran' : 'Check Failed'}} </td>
+        </ng-container>
+
+        <ng-container matColumnDef="Stimulating">
+            <th mat-header-cell *matHeaderCellDef> Connection Status </th>
+            <td mat-cell *matCellDef="let element"
+            [ngClass] = "{
+            'on-box' : element.Stimulating && element.RanCheck,
+            'off-box' : !element.Stimulating && element.RanCheck,
+            'open-box' : !element.RanCheck
+            }"> 
+            {{element.Stimulating && element.RanCheck ? 'Plate Connected' : 
+            !element.Stimulating && element.RanCheck ? 'Open Circuit' :
+        'Undetermined'}} 
+        </td>
+        </ng-container>
+
+        <ng-container matColumnDef="current">
+            <th mat-header-cell *matHeaderCellDef> Current(mA) </th>
+            <td mat-cell *matCellDef="let element"
+            [ngClass] = "{
+                'on-box' : element.Stimulating && element.RanCheck,
+                'off-box' : !element.Stimulating && element.RanCheck,
+                'open-box' : !element.RanCheck
+                }"> {{element.current}} </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+    </table>
+</div>
+
